@@ -1,0 +1,11 @@
+# Never commit files with unencrypted student data or passwords
+*.xlsx
+*.xls
+*.csv
+*.pdf
+class-planner-*.json
+*password*
+.DS_Store
+node_modules/
+.vercel/
+.firebase/

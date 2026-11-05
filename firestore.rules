@@ -1,0 +1,126 @@
+rules_version = '2';
+
+// Class Planner: Firestore security rules
+// --------------------------------------------------------------------------
+// Roles live in users/{uid}.role:
+//   'pending'  signed in with Google but not yet linked to a tutor (no access)
+//   'tutor'    linked to one tutors/{tutorId} through users/{uid}.tutorId
+//   'admin'    full access
+// Only an admin changes roles, with one exception: when an admin has saved a
+// tutor's Google email on tutors/{tutorId}.email (lower case), the person who
+// signs in with that verified email may link themselves to that tutor once.
+//
+// Admin-owned and tutor-owned data are split into separate documents, because
+// Firestore rules allow or deny whole documents, not single fields:
+//   classes/{classId}        plan: subject, time, tutor, students, admin checklist   (admin writes)
+//   classProgress/{classId}  work: status, attendance, tutor checklist, lesson notes (tutor of that class writes)
+//   tutorRates/{tutorId}     hourly rates: admin only, tutors cannot even read them
+//   students/{studentId}     contact details and prices: admin only (class docs carry the names and colours tutors need)
+//   classes.cancellations    student cancellations (CC) and whether they're charged: admin writes, tutor can read
+//
+// First admin: sign in once, then in the Firebase console set your own
+// users/{uid}.role to "admin". After that, link accounts from the app.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function profilePath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile() { return signedIn() && exists(profilePath()); }
+    function me() { return get(profilePath()).data; }
+    function isAdmin() { return hasProfile() && me().role == 'admin'; }
+    function isTutor() { return hasProfile() && me().role == 'tutor' && me().tutorId is string; }
+    function myTutorId() { return me().tutorId; }
+    function teaches(data) { return isTutor() && data.tutorId == myTutorId(); }
+    function changedOnly(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function emailOk() { return signedIn() && request.auth.token.email is string && request.auth.token.email_verified == true; }
+    // A tutor record you may claim: active, has your verified email, not linked to someone else.
+    // get() reads the state before this write, so a batch that also sets linkedUid still passes.
+    function claimable(tutorId) {
+      let t = get(/databases/$(database)/documents/tutors/$(tutorId)).data;
+      return emailOk() && tutorId is string && t.active == true && t.email == myEmail()
+        && (t.linkedUid == null || t.linkedUid == request.auth.uid);
+    }
+
+    // ---- Accounts --------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+
+      // First sign-in: you may create only your own profile, with no access,
+      // or as the tutor whose saved email matches yours.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'photoURL', 'role', 'tutorId', 'createdAt', 'lastLoginAt'])
+        && request.resource.data.email == request.auth.token.email
+        && (
+          (request.resource.data.role == 'pending' && request.resource.data.tutorId == null)
+          || (request.resource.data.role == 'tutor' && claimable(request.resource.data.tutorId))
+        );
+
+      // Admins link accounts and set roles. People may refresh their own name/photo,
+      // and a waiting account may link itself to the tutor that has its email.
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid && changedOnly(['displayName', 'photoURL', 'lastLoginAt']))
+        || (signedIn() && request.auth.uid == uid
+            && resource.data.role == 'pending' && request.resource.data.role == 'tutor'
+            && changedOnly(['role', 'tutorId', 'displayName', 'photoURL', 'lastLoginAt'])
+            && claimable(request.resource.data.tutorId));
+      allow delete: if isAdmin();
+    }
+
+    // ---- Tutor directory (tutors do not need an account) ------------------
+    // On sign-in the app queries where('email', '==', <your email in lower case>).
+    match /tutors/{tutorId} {
+      allow read: if isAdmin() || (isTutor() && myTutorId() == tutorId)
+        || (emailOk() && resource.data.email == myEmail());
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        emailOk() && resource.data.linkedUid == null && resource.data.email == myEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUid'])
+        && request.resource.data.linkedUid == request.auth.uid
+      );
+    }
+
+    // ---- Pay rates: admin only, not readable by tutors --------------------
+    match /tutorRates/{tutorId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---- Students: admin only ----------------------------------------------
+    match /students/{studentId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---- Paid ticks on pay slips and receipts: admin only ------------------
+    match /payments/{paymentId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---- School settings ---------------------------------------------------
+    match /settings/{docId} {
+      allow read: if isAdmin() || isTutor();
+      allow write: if isAdmin();
+    }
+
+    // ---- Class plan: admin edits; the assigned tutor can read --------------
+    // Tutors must query with where('tutorId', '==', <their tutorId>).
+    match /classes/{classId} {
+      allow read: if isAdmin() || teaches(resource.data);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- Class progress: the assigned tutor edits these fields only --------
+    // Same query rule: where('tutorId', '==', <their tutorId>).
+    match /classProgress/{classId} {
+      allow read: if isAdmin() || teaches(resource.data);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        teaches(resource.data)
+        && request.resource.data.tutorId == resource.data.tutorId
+        && changedOnly(['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy'])
+        && request.resource.data.status in ['todo', 'in_progress', 'completed']
+        && request.resource.data.updatedBy == request.auth.uid
+      );
+    }
+  }
+}
