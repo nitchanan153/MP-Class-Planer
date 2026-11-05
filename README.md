@@ -1,31 +1,51 @@
 # MP Class Planner
 
-เว็บแอปจัดตารางสอนของ Morpheus ทั้งแอปอยู่ในไฟล์เดียวคือ `index.html` (HTML + CSS + JS ไม่ต้อง build)
+เว็บแอปจัดตารางสอนของ Morpheus
+- ทุกคนล็อกอินด้วยอีเมลและรหัสผ่านของตัวเอง
+- ข้อมูลเก็บที่ Firebase (Firestore) ทุกเครื่องเห็นข้อมูลชุดเดียวกันและอัปเดตทันที
+- สิทธิ์ถูกบังคับที่เซิร์ฟเวอร์ด้วย `firestore.rules`
 
-## มีอะไรบ้าง
+## ไฟล์
 
 | ไฟล์ | ใช้ทำอะไร |
 |---|---|
-| `index.html` | ตัวแอป: Board, Calendar, Billing, pay slip และใบเสร็จขนาด A5 |
-| `vercel.json` | ตั้งค่า Vercel: ห้าม search engine เก็บหน้า และเพิ่ม security headers |
-| `firestore.rules`, `firestore.indexes.json`, `firebase.json` | สำหรับย้ายไป Firebase ภายหลัง |
+| `index.html` | ตัวแอป ได้แก่ Board, Calendar, Billing, pay slip และใบเสร็จ A5 รวมถึงการเชื่อม Firebase (โปรเจกต์ `mp-class-planner`) |
+| `firebase-sdk.js` | Firebase JS SDK 13.2 (app, auth, firestore) รวมเป็นไฟล์เดียว (ลิขสิทธิ์ Apache-2.0 ดูท้ายไฟล์) |
+| `firestore.rules` | กฎสิทธิ์ ใครอ่านหรือเขียนอะไรได้บ้าง ต้องนำไปวางใน Firebase console |
+| `firestore.indexes.json` | index ที่ query ของครูต้องใช้ (`classes`: `tutorId` + `date`) |
+| `vercel.json` | ตั้งค่า Vercel ไม่ให้ search engine เก็บหน้า และเพิ่ม security headers |
 
-## ขึ้นเว็บด้วย Vercel
+## ตั้งค่า Firebase (ทำครั้งเดียว)
 
-1. ที่ vercel.com เลือก Add New → Project แล้ว import repo นี้
-2. Framework Preset เลือก **Other** ไม่ต้องตั้ง build command
-3. กด Deploy ทุกครั้งที่ push ขึ้น `main` Vercel จะ deploy ให้เอง
+1. **Authentication** → Sign-in method → เปิด **Email/Password**
+2. **Firestore Database** → แท็บ **Rules** → ลบของเดิมแล้ววางเนื้อหาทั้งหมดของ `firestore.rules` → กด **Publish**
+3. **Firestore Database** → แท็บ **Indexes** → Composite → **Create index** แล้วตั้งค่าดังนี้
+   - Collection ID: `classes`
+   - Fields: `tutorId` Ascending และ `date` Ascending
+   - Query scope: Collection
+4. เปิดเว็บ (Vercel) → กด **Create the admin account** → สร้างบัญชีแอดมิน
+5. หน้าถัดไปเลือกแหล่งข้อมูลที่จะนำเข้า แล้วกด **Finish setup**
+6. **Manage → Accounts → Add a sign-in account:** สร้างบัญชีให้ครูทีละคน แล้วส่งอีเมลกับรหัสผ่านให้ครู
+
+ถ้ายังไม่ได้สร้าง index ตามข้อ 3 ครูก็ยังเห็นคลาสของตัวเองได้ แต่แอปจะต้องโหลดคลาสทั้งหมดของครูคนนั้นทุกครั้ง ทำให้อ่านข้อมูลมากกว่าที่ควร
+
+## รหัสผ่าน
+
+- **เปลี่ยนรหัสผ่าน:** กดที่ชื่อมุมขวาบน → **Change password**
+- **ลืมรหัสผ่าน:** ที่หน้าล็อกอินพิมพ์อีเมลแล้วกด **Forgot your password?** ระบบจะส่งลิงก์ตั้งรหัสใหม่ไปที่อีเมล
+- **แอดมินส่งลิงก์ให้คนอื่น:** Manage → Accounts → **Send reset link**
+- **ลบหรือปิดบัญชี:** ทำได้ที่ Firebase console → Authentication → Users
 
 ## ความปลอดภัย
 
-- ตารางสอนและชื่อนักเรียนใน `index.html` ถูกเข้ารหัส (AES-GCM) ต้องใส่รหัสผ่านของแต่ละบัญชีจึงจะเปิดได้
-- **รหัสผ่านไม่ได้อยู่ใน repo นี้ และห้าม commit รหัสผ่านลงที่นี่**
-- ห้าม commit ไฟล์ Excel ตารางสอน ไฟล์ export JSON หรือไฟล์ CSV และ PDF จากหน้า Billing เพราะในไฟล์เหล่านี้ชื่อนักเรียนไม่ได้เข้ารหัส (`.gitignore` กันไว้ให้แล้ว)
+- ค่าใน `FIREBASE_CONFIG` ไม่ใช่ความลับ สิ่งที่ปกป้องข้อมูลคือ `firestore.rules` และการล็อกอิน
+- ครูได้รับเฉพาะคลาสของตัวเอง ค่าสอน ข้อมูลนักเรียน และการจ่ายเงินจะไม่ถูกส่งไปที่เครื่องครู
+- ห้าม commit ไฟล์ Excel, CSV, PDF หรือ JSON ที่ export มา เพราะในไฟล์เหล่านี้ชื่อนักเรียนไม่ได้เข้ารหัส
 - แนะนำให้ตั้ง repo เป็น **Private**
 
-## เปลี่ยนรหัสผ่าน
+## โควตาแพ็กเกจฟรี (Spark)
 
-1. ล็อกอินด้วยบัญชีแอดมินบนเว็บจริง
-2. ไปที่ Manage → Accounts → Sign-in passwords แล้วกด **Make new app file**
-3. ระบบจะดาวน์โหลด `index.html` ไฟล์ใหม่มาให้ นำไปแทนไฟล์เดิมใน repo แล้ว commit และ push
-4. หลัง Vercel deploy เสร็จ รหัสใหม่จึงจะใช้ได้
+- อ่านได้ 50,000 ครั้งต่อวัน และเขียนได้ 20,000 ครั้งต่อวัน
+- แอปโหลดคลาสทีละเดือน (เดือนก่อน เดือนนี้ เดือนหน้า) ส่วนเดือนอื่นจะโหลดเมื่อเปิดดู
+- หน้า Billing จะโหลดทุกเดือนตั้งแต่เดือนแรก เพื่อใช้คำนวณเครดิต
+- ถ้าใช้เกินโควต้า Firestore จะหยุดทำงานจนถึงวันถัดไป ถ้าใช้งานมากขึ้นเรื่อย ๆ ให้เปลี่ยนเป็นแพ็กเกจ Blaze ซึ่งคิดเงินตามที่ใช้จริง สำหรับโรงเรียนขนาดนี้ค่าใช้จ่ายน่าจะน้อยมาก

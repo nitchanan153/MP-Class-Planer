@@ -5,7 +5,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "tutorId", "order": "ASCENDING" },
-        { "fieldPath": "startAt", "order": "ASCENDING" }
+        { "fieldPath": "date", "order": "ASCENDING" }
       ]
     }
   ],

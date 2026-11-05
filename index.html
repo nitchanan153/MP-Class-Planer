@@ -130,6 +130,17 @@ select{cursor:pointer}
 .acct.static{cursor:default;border:1px solid var(--rule);border-radius:10px}
 .acct.static:hover{background:#fff}
 .signin-form{display:grid;gap:14px}
+body:not(.cloud) .cloud-only,body.cloud .local-only{display:none !important}
+.auth-card .link-btn{justify-self:start;padding:0;border:0;background:none;color:var(--focus);font-weight:700;font-size:14px;cursor:pointer}
+.auth-card fieldset{border:0;padding:0;margin:0;display:grid;gap:8px}
+.auth-card fieldset legend{font-weight:700;font-size:13.5px;margin-bottom:6px}
+.auth-card .radio{display:flex;gap:8px;align-items:flex-start;font-size:14.5px}
+.auth-card .radio input{margin-top:3px}
+.setup-progress{height:8px;border-radius:4px;background:var(--rule-2);overflow:hidden}
+.setup-progress i{display:block;height:100%;background:var(--ok);transition:width .2s}
+.cloud-note{margin:12px 20px 0}
+.add-acct{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-items:end;margin-top:10px;max-width:640px}
+@media (max-width:760px){.add-acct{grid-template-columns:1fr}}
 
 /* ---------- Board ---------- */
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 20px 0}
@@ -593,14 +604,15 @@ body.has-bulkbar .toasts{bottom:86px}
       <button type="button" data-action="manage" data-tab="settings">School settings</button>
       <hr>
       <button type="button" data-action="export">Export data (JSON)</button>
-      <button type="button" data-action="import">Import data (JSON)</button>
-      <button type="button" data-action="reset">Reset to demo data</button>
+      <button type="button" data-action="import" class="local-only">Import data (JSON)</button>
+      <button type="button" data-action="reset" class="local-only">Reset to demo data</button>
     </div>
   </details>
   <details class="menu" id="account-menu">
     <summary class="acct-chip" aria-label="Account menu"><span class="avatar" id="acct-avatar"></span><span class="acct-text"><strong id="acct-name"></strong><span id="acct-role"></span></span></summary>
     <div class="menu-panel">
       <div class="menu-note" id="acct-email"></div>
+      <button type="button" data-action="change-pw" class="cloud-only">Change password</button>
       <button type="button" data-action="switch-account">Switch account</button>
       <button type="button" data-action="sign-out">Sign out</button>
     </div>
@@ -652,6 +664,14 @@ body.has-bulkbar .toasts{bottom:86px}
 
    Admin and tutor data sit in separate documents because Firestore rules
    allow or deny whole documents, not single fields.
+
+   In Firestore itself a class is ONE document, classes/{classId}: the plan
+   fields plus a `progress` map (status, attendance, tutorChecklist,
+   lessonNotes, updatedAt, updatedBy). The rules let the class's tutor change
+   only `progress`. The Repo splits it back into classes + classProgress, so the
+   rest of the app (and the Rules copy below) works with the two views above.
+   Classes load by month (date range queries); a tutor's query also filters on
+   tutorId, which needs the composite index in firestore.indexes.json.
    ========================================================================== */
 
 /* ---------- Constants ---------- */
@@ -929,6 +949,88 @@ const Vault = (() => {
 })();
 
 /* ==========================================================================
+   Cloud: Firebase Authentication and Firestore.
+   The app talks to Firebase only through the small object below, so the rest
+   of the code doesn't change. Tests use a fake with the same shape
+   (window.__FAKE_CLOUD__). These config values aren't secret: firestore.rules
+   decides who can read and write.
+   ========================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey:'AIzaSyAj47EB93DjaOgdQa7tt_O5vEKPUKYIH_A',
+  authDomain:'mp-class-planner.firebaseapp.com',
+  projectId:'mp-class-planner',
+  storageBucket:'mp-class-planner.firebasestorage.app',
+  messagingSenderId:'569016451908',
+  appId:'1:569016451908:web:d8cb5f0609cc65f2d70d11',
+  measurementId:'G-Q9L0CXTEG5',
+};
+const CLOUD = !!FIREBASE_CONFIG;
+const DELETE_FIELD = Object.freeze({ __deleteField:true });   // in an update: remove this field
+let Cloud = null;
+async function connectCloud() {
+  if (window.__FAKE_CLOUD__) return window.__FAKE_CLOUD__;
+  const FB = await import('./firebase-sdk.js');   // Firebase JS SDK 13.2 (app, auth, firestore), bundled next to this file
+  const app = FB.initializeApp(FIREBASE_CONFIG);
+  const auth = FB.getAuth(app);
+  let fs;
+  try { fs = FB.initializeFirestore(app, { localCache:FB.persistentLocalCache({ tabManager:FB.persistentMultipleTabManager() }) }); }
+  catch { fs = FB.getFirestore(app); }
+  const ref = path => FB.doc(fs, ...path.split('/'));
+  const q = (col, filters = []) => FB.query(FB.collection(fs, col), ...filters.map(([f, op, v]) => FB.where(f, op, v)));
+  const fields = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, v === DELETE_FIELD ? FB.deleteField() : v]));
+  const who = u => u && { uid:u.uid, email:String(u.email || '').toLowerCase(), displayName:u.displayName || '' };
+  return {
+    onAuth:cb => FB.onAuthStateChanged(auth, u => cb(who(u))),
+    signIn:(email, pw) => FB.signInWithEmailAndPassword(auth, email, pw),
+    async signUp(email, pw, name) {
+      const c = await FB.createUserWithEmailAndPassword(auth, email, pw);
+      if (name) await FB.updateProfile(c.user, { displayName:name });
+      return who({ ...c.user, displayName:name || c.user.displayName });
+    },
+    /* An admin makes an account for someone else: a second app instance, so the admin stays signed in */
+    async createAccount(email, pw, name) {
+      const second = FB.initializeApp(FIREBASE_CONFIG, `create-${Date.now()}`), a2 = FB.getAuth(second);
+      try {
+        const c = await FB.createUserWithEmailAndPassword(a2, email, pw);
+        if (name) await FB.updateProfile(c.user, { displayName:name });
+        return c.user.uid;
+      } finally { await FB.signOut(a2).catch(() => {}); await FB.deleteApp(second).catch(() => {}); }
+    },
+    signOut:() => FB.signOut(auth),
+    resetPassword:email => FB.sendPasswordResetEmail(auth, email),
+    async changePassword(current, next) {
+      const u = auth.currentUser;
+      await FB.reauthenticateWithCredential(u, FB.EmailAuthProvider.credential(u.email, current));
+      await FB.updatePassword(u, next);
+    },
+    get:async path => { const d = await FB.getDoc(ref(path)); return d.exists() ? d.data() : null; },
+    getAll:async (col, filters) => (await FB.getDocs(q(col, filters))).docs.map(d => ({ id:d.id, data:d.data() })),
+    listen:(col, filters, onChanges, onError) => FB.onSnapshot(q(col, filters),
+      snap => onChanges(snap.docChanges().map(ch => ({ type:ch.type, id:ch.doc.id, data:ch.doc.data() }))), onError),
+    listenDoc:(path, onData, onError) => FB.onSnapshot(ref(path), d => onData(d.exists() ? d.data() : null), onError),
+    /* writes: [{ type:'set'|'update'|'delete', path:'col/id', data | fields }]: one atomic batch (500 at most) */
+    async commit(writes) {
+      const b = FB.writeBatch(fs);
+      for (const w of writes) {
+        if (w.type === 'set') b.set(ref(w.path), w.data);
+        else if (w.type === 'update') b.update(ref(w.path), fields(w.fields));
+        else b.delete(ref(w.path));
+      }
+      await b.commit();
+    },
+  };
+}
+const AUTH_ERRORS = {
+  'auth/invalid-credential':'That email or password isn’t right.', 'auth/wrong-password':'That email or password isn’t right.',
+  'auth/user-not-found':'That email or password isn’t right.', 'auth/invalid-email':'Enter a full email address.',
+  'auth/missing-password':'Enter your password.', 'auth/too-many-requests':'Too many tries. Wait a few minutes, or reset your password.',
+  'auth/email-already-in-use':'An account with this email already exists.', 'auth/weak-password':'Use at least 8 characters for the password.',
+  'auth/network-request-failed':'Can’t reach Firebase. Check the internet connection.', 'auth/requires-recent-login':'Sign out and in again, then try once more.',
+  'auth/user-disabled':'This account has been turned off. Ask the office.',
+};
+const authMessage = e => AUTH_ERRORS[e?.code] || e?.message || 'Something went wrong.';
+
+/* ==========================================================================
    Rules: a JavaScript copy of firestore.rules. Keep the two in step.
    ========================================================================== */
 const Rules = (() => {
@@ -970,7 +1072,7 @@ const Rules = (() => {
     switch (col) {
       case 'users': {
         const self = c.signedIn && auth.uid === id;
-        if (op === 'create') return self
+        if (op === 'create') return c.isAdmin || self
           && Object.keys(after).every(k => USER_CREATE_KEYS.includes(k)) && after.email === auth.email
           && ((after.role === 'pending' && after.tutorId === null) || (after.role === 'tutor' && claimable(db, auth, c, after.tutorId)));
         if (op === 'update') return c.isAdmin
@@ -1008,7 +1110,8 @@ const Repo = (() => {
   let db = null, version = 0, cache = { key:null, value:[] };
   const listeners = new Set();
   const auth = () => ui.auth;
-  const write = () => { version++; Vault.save(db); };   // saved encrypted (see Vault)
+  const write = () => { version++; if (!Cloud) Vault.save(db); };   // without Firebase: saved encrypted in this browser (see Vault)
+  const emptyDb = () => ({ schemaVersion:SCHEMA, ...Object.fromEntries([...COLLECTIONS, 'payments'].map(k => [k, {}])) });
   const emit = () => listeners.forEach(fn => fn());
   const newId = p => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const now = () => new Date().toISOString();
@@ -1068,6 +1171,130 @@ const Repo = (() => {
   const list = col => Object.keys(db[col]).filter(id => allowed(col, id)).map(id => ({ ...db[col][id], id }));
   const isAdminNow = () => Rules.canRead(db, auth(), 'students', '', null);
 
+  /* ---------- Firestore mirror ----------
+     Listeners copy what this account may read into `db`, so every read in the app stays instant.
+     A class is one Firestore document: the plan, plus the tutor's work in a `progress` map
+     (one read per class instead of two). Here it is split back into classes + classProgress. */
+  const subs = new Map(), holders = new Map(), loadedMonths = new Set();
+  let role = null, onStatus = () => {}, tutorAll = false;
+  const PROGRESS_FIELDS = ['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy'];
+  const clean = x => JSON.parse(JSON.stringify(x));
+  function putDoc(col, id, data) {
+    if (col !== 'classes') { db[col][id] = data; return; }
+    const { progress = {}, ...plan } = data;
+    db.classes[id] = plan;
+    db.classProgress[id] = { status:'todo', attendance:{}, tutorChecklist:{}, lessonNotes:'', ...progress, tutorId:plan.tutorId };
+  }
+  function dropDoc(col, id) { if (col === 'classes') { delete db.classes[id]; delete db.classProgress[id]; } else delete db[col][id]; }
+  function hold(key, col, id, data) {   // several listeners may hold one document (e.g. a class moved between months)
+    const k = `${col}/${id}`;
+    if (data) { if (!holders.has(k)) holders.set(k, new Set()); holders.get(k).add(key); putDoc(col, id, data); return; }
+    const h = holders.get(k); if (h) { h.delete(key); if (h.size) return; holders.delete(k); }
+    dropDoc(col, id);
+  }
+  function unsub(key) {
+    const stop = subs.get(key); if (!stop) return;
+    stop(); subs.delete(key);
+    for (const [k, h] of [...holders]) if (h.delete(key) && !h.size) { holders.delete(k); const [col, id] = k.split('/'); dropDoc(col, id); }
+  }
+  function sub(key, col, filters, onError) {   // resolves after the first snapshot
+    if (subs.has(key)) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      let first = true;
+      subs.set(key, Cloud.listen(col, filters, changes => {
+        for (const ch of changes) hold(key, col, ch.id, ch.type === 'removed' ? null : ch.data);
+        version++; emit();
+        if (first) { first = false; resolve(); }
+      }, err => { subs.delete(key); (onError || cloudError)(err, key); if (first) { first = false; reject(err); } }));
+    });
+  }
+  function subDoc(key, col, id, onData) {
+    if (subs.has(key)) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      let first = true;
+      subs.set(key, Cloud.listenDoc(`${col}/${id}`, data => {
+        hold(key, col, id, data); version++;
+        onData ? onData(data) : emit();
+        if (first) { first = false; resolve(); }
+      }, err => { subs.delete(key); cloudError(err, key); if (first) { first = false; reject(err); } }));
+    });
+  }
+  function cloudError(err, key) {
+    console.error(`Firestore (${key}):`, err);
+    ui.cloudError = err?.code === 'failed-precondition' ? 'Firebase is still building an index it needs. Classes appear once it’s ready.' : (err?.message || 'Couldn’t load data from Firebase.');
+    emit();
+  }
+  const tutorIdOf = r => r.startsWith('tutor:') ? r.slice(6) : null;
+  function classFilters(m) {
+    const range = [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]];
+    return role === 'admin' ? range : [['tutorId', '==', tutorIdOf(role)], ...range];
+  }
+  function ensureMonths(months) {
+    if (!Cloud || !role || role === 'pending') return Promise.resolve();
+    const tid = tutorIdOf(role), jobs = [];
+    if (tid && tutorAll) return sub('classes:all', 'classes', [['tutorId', '==', tid]]).catch(() => {});
+    for (const m of months) {
+      if (loadedMonths.has(m)) continue;
+      loadedMonths.add(m);
+      jobs.push(sub(`classes:${m}`, 'classes', classFilters(m), (err, key) => {
+        // a tutor's month query needs the composite index (tutorId, date); until it exists, load all their classes instead
+        if (tid && err?.code === 'failed-precondition') { console.warn('Index tutorId+date missing; loading all of this tutor’s classes.', err); tutorAll = true; ensureMonths([]); }
+        else cloudError(err, key);
+      }).catch(() => {}));
+      if (role === 'admin') jobs.push(sub(`payments:${m}`, 'payments', [['month', '==', m]]).catch(() => {}));
+    }
+    return Promise.all(jobs);
+  }
+  async function resubscribe(next) {
+    for (const k of [...subs.keys()]) if (k !== 'me') unsub(k);
+    loadedMonths.clear(); tutorAll = false; ui.cloudError = null;
+    role = next;
+    if (role === 'pending') { onStatus('ready'); return; }
+    const tid = tutorIdOf(role), t = bkkNow().date, win = [-1, 0, 1].map(n => addMonths(t, n).slice(0, 7));
+    const core = role === 'admin'
+      ? [sub('users', 'users', []), sub('tutors', 'tutors', []), sub('tutorRates', 'tutorRates', []), sub('students', 'students', []), subDoc('settings', 'settings', 'app')]
+      : [subDoc('tutor', 'tutors', tid), subDoc('settings', 'settings', 'app')];
+    try { await Promise.all([...core, ensureMonths(win)]); onStatus('ready'); }
+    catch (e) { onStatus('error', e); }
+  }
+  /* Physical Firestore writes for a set of logical changes (classes + classProgress become one document) */
+  function physical(staged) {
+    const over = {};
+    for (const s of staged) (over[s.col] ||= {})[s.id] = s.after;
+    const pick = (col, id) => over[col] && id in over[col] ? over[col][id] : db[col][id] || null;
+    const merged = (plan, prog) => { if (!plan) return null; const p = {}; for (const k of PROGRESS_FIELDS) if (prog?.[k] !== undefined) p[k] = prog[k]; return clean({ ...plan, progress:p }); };
+    const keys = new Set(staged.map(s => s.col === 'classProgress' ? `classes/${s.id}` : `${s.col}/${s.id}`)), out = [];
+    for (const k of keys) {
+      const [col, id] = k.split('/');
+      const before = col === 'classes' ? merged(db.classes[id], db.classProgress[id]) : db[col][id] ? clean(db[col][id]) : null;
+      const after = col === 'classes' ? merged(pick('classes', id), pick('classProgress', id)) : pick(col, id) ? clean(pick(col, id)) : null;
+      if (!after) { if (before) out.push({ type:'delete', path:k }); continue; }
+      if (!before) { out.push({ type:'set', path:k, data:after }); continue; }
+      const fields = diffFields(before, after);
+      if (Object.keys(fields).length) out.push({ type:'update', path:k, fields });
+    }
+    return out;
+  }
+  function diffFields(a, b, base = '', out = {}) {
+    const obj = v => v && typeof v === 'object' && !Array.isArray(v);
+    for (const k of new Set([...Object.keys(a || {}), ...Object.keys(b || {})])) {
+      const path = base ? `${base}.${k}` : k, x = a?.[k], y = b?.[k];
+      if (y === undefined) { if (x !== undefined) out[path] = DELETE_FIELD; }
+      else if (obj(x) && obj(y)) diffFields(x, y, path, out);
+      else if (JSON.stringify(x) !== JSON.stringify(y)) out[path] = y;
+    }
+    return out;
+  }
+  async function commitAll(writes) {   // Firestore takes 500 writes per batch; bigger changes go in several
+    for (let i = 0; i < writes.length; i += 450) await Cloud.commit(writes.slice(i, i + 450));
+  }
+  /* Load every class once (admin), before a change that has to reach all of them, e.g. a student's colour */
+  async function loadAll() {
+    if (!Cloud || role !== 'admin' || loadedMonths.has('*')) return;
+    for (const { id, data } of await Cloud.getAll('classes', [])) hold('all', 'classes', id, data);
+    loadedMonths.add('*'); version++;
+  }
+
   /* Every write goes through here, like a Firestore writeBatch(): all checked, then all applied. */
   async function batch(ops) {
     const staged = ops.map(o => {
@@ -1083,8 +1310,17 @@ const Repo = (() => {
       return { ...o, kind:before ? 'update' : 'create', before, after };
     });
     for (const s of staged) if (!Rules.canWrite(db, auth(), s.kind, s.col, s.id, s.before, s.after)) throw deny();
+    const writes = Cloud ? physical(staged) : null;
     for (const s of staged) { if (s.kind === 'delete') delete db[s.col][s.id]; else db[s.col][s.id] = s.after; }
     write(); emit();
+    if (!Cloud) return;
+    try {   // shown at once; Firestore confirms in the background (and keeps it while offline)
+      await Promise.race([commitAll(writes), new Promise(r => setTimeout(r, 8000))]);
+    } catch (e) {
+      for (const s of staged) { if (s.before) db[s.col][s.id] = s.before; else delete db[s.col][s.id]; }
+      version++; emit();
+      throw e;
+    }
   }
   function joinClass(id) {
     const plan = db.classes[id];
@@ -1094,6 +1330,66 @@ const Repo = (() => {
 
   return {
     newId,
+    /* ---- Firebase ---- */
+    blank() { db = emptyDb(); version++; },
+    /* Signed in: follow this account's profile, then load what its role may read */
+    connect(a, statusCb) {
+      onStatus = statusCb; role = null; db = emptyDb(); version++;
+      let lastSeen = null;
+      return subDoc('me', 'users', a.uid, async data => {
+        if (!data) {
+          if (lastSeen) { lastSeen = null; role = null; for (const k of [...subs.keys()]) if (k !== 'me') unsub(k); }
+          const pub = await Cloud.get('meta/public').catch(() => 'unknown');
+          if (!pub) return onStatus('setup');
+          try {   // signed in, but nobody has given this account access yet
+            const t = now();
+            await Cloud.commit([{ type:'set', path:`users/${a.uid}`, data:{ email:a.email, displayName:a.displayName || a.email.split('@')[0], photoURL:null, role:'pending', tutorId:null, createdAt:t, lastLoginAt:t } }]);
+          } catch (e) { onStatus('error', e); }
+          return;
+        }
+        const next = data.role === 'admin' ? 'admin' : data.role === 'tutor' && data.tutorId ? `tutor:${data.tutorId}` : 'pending';
+        if (!lastSeen) Cloud.commit([{ type:'update', path:`users/${a.uid}`, fields:{ lastLoginAt:now() } }]).catch(() => {});
+        lastSeen = data;
+        if (next !== role) await resubscribe(next); else emit();
+      }).catch(e => onStatus('error', e));
+    },
+    disconnect() { for (const k of [...subs.keys()]) unsub(k); role = null; loadedMonths.clear(); db = emptyDb(); version++; },
+    ensureMonths,
+    loadAll,
+    monthLoaded:m => !Cloud || loadedMonths.has(m) || tutorAll,
+    /* First run: the signed-in account becomes the admin and the data goes up. Only works while meta/public doesn't exist. */
+    async bootstrap(data, a, onProgress) {
+      const t = now(), settings = { ...DEFAULT_SETTINGS, ...(data.settings?.app || {}) };
+      const months = Object.values(data.classes).map(c => c.date.slice(0, 7)).sort();
+      settings.firstMonth = months[0] || bkkNow().date.slice(0, 7);
+      await Cloud.commit([
+        { type:'set', path:`users/${a.uid}`, data:{ email:a.email, displayName:a.displayName, photoURL:null, role:'admin', tutorId:null, createdAt:t, lastLoginAt:t } },
+        { type:'set', path:'settings/app', data:clean(settings) },
+        { type:'set', path:'meta/public', data:{ setupAt:t, setupBy:a.uid } },
+      ]);
+      const writes = [];
+      for (const [id, x] of Object.entries(data.tutors || {})) writes.push({ type:'set', path:`tutors/${id}`, data:clean({ ...x, linkedUid:null, email:/@example\.com$/i.test(x.email || '') ? '' : (x.email || '') }) });
+      for (const col of ['tutorRates', 'students', 'payments']) for (const [id, x] of Object.entries(data[col] || {})) writes.push({ type:'set', path:`${col}/${id}`, data:clean(x) });
+      for (const [id, c] of Object.entries(data.classes)) {
+        const p = data.classProgress?.[id] || {}, progress = { status:'todo', attendance:{}, tutorChecklist:{}, lessonNotes:'' };
+        for (const k of PROGRESS_FIELDS) if (p[k] !== undefined) progress[k] = p[k];
+        writes.push({ type:'set', path:`classes/${id}`, data:clean({ ...c, progress }) });
+      }
+      for (let i = 0; i < writes.length; i += 450) { await Cloud.commit(writes.slice(i, i + 450)); onProgress?.(Math.min(i + 450, writes.length), writes.length); }
+      return writes.length;
+    },
+    prepare(x) { x.payments ||= {}; upgradeStored(x); if (TIMETABLE) mergeTimetable(x); return x; },
+    /* Admin: a profile for an account just made in Firebase Authentication */
+    addProfile(uid, { email, displayName, access }) {
+      const r = access.startsWith('tutor:') ? 'tutor' : access, tutorId = r === 'tutor' ? access.slice(6) : null, t = now(), ops = [];
+      ops.push({ op:'set', col:'users', id:uid, data:{ email, displayName, photoURL:null, role:r, tutorId, createdAt:t, lastLoginAt:null } });
+      if (tutorId) {
+        const prev = db.tutors[tutorId]?.linkedUid;
+        if (prev && db.users[prev]) ops.push({ op:'update', col:'users', id:prev, patch:{ role:'pending', tutorId:null } });
+        ops.push({ op:'update', col:'tutors', id:tutorId, patch:{ linkedUid:uid, email } });
+      }
+      return batch(ops);
+    },
     /* Returns how many classes a newer timetable inside the app added to this browser's saved data */
     init(saved) {
       const keep = valid(saved) && saved.schemaVersion === SCHEMA;
@@ -1185,6 +1481,7 @@ const Repo = (() => {
 
     /* ---- people & settings (admin) ---- */
     async saveTutor({ id, ...fields }) {
+      if (Cloud && id && fields.name) await loadAll();
       const tid = id || newId('tutor'), before = db.tutors[tid], ops = [];
       if (!before) { ops.push({ op:'set', col:'tutors', id:tid, data:{ name:fields.name, active:true, email:fields.email || '', linkedUid:null, createdAt:now() } }); }
       else {
@@ -1200,6 +1497,7 @@ const Repo = (() => {
     },
     setRate: (tutorId, hourlyRate) => batch([{ op:'set', col:'tutorRates', id:tutorId, data:{ hourlyRate, currency:'THB', updatedAt:now(), updatedBy:auth()?.uid } }]),
     async saveStudent({ id, ...fields }) {
+      if (Cloud && id && fields.name) await loadAll();
       const sid = id || newId('stu'), before = db.students[sid], ops = [];
       ops.push(before ? { op:'update', col:'students', id:sid, patch:fields } : { op:'set', col:'students', id:sid, data:{ active:true, contact:'', ...fields } });
       if (before && fields.name && fields.name !== before.name) for (const [cid, c] of Object.entries(db.classes)) if (c.studentIds.includes(sid)) ops.push({ op:'update', col:'classes', id:cid, patch:{ [`studentNames.${sid}`]: fields.name } });
@@ -1218,7 +1516,8 @@ const Repo = (() => {
     /* ---- backup ---- */
     /* map: { studentId: '#hex' | null }. Tutors can't read students, so each class keeps a copy in studentColors.
        Firestore: a batch holds 500 writes, so split large changes into several batches. */
-    setStudentColors(map) {
+    async setStudentColors(map) {
+      if (Cloud) await loadAll();
       const ops = [], perClass = {};
       for (const [sid, color] of Object.entries(map)) {
         ops.push({ op:'update', col:'students', id:sid, patch:{ color:color || null } });
@@ -1230,10 +1529,11 @@ const Repo = (() => {
     exportJson() { if (!isAdminNow()) throw deny(); return JSON.stringify(db, null, 2); },
     async importJson(obj) {
       if (!isAdminNow()) throw deny();
+      if (Cloud) throw new Error('Importing would replace everyone’s data, so it’s off while the app uses Firebase.');
       if (!valid(obj)) throw new Error('This file isn’t a Class Planner export from this version.');
       db = obj; upgradeStored(db); mergeTimetable(db); write(); emit();
     },
-    async reset() { if (!isAdminNow()) throw deny(); db = buildSeed(); write(); emit(); },
+    async reset() { if (!isAdminNow()) throw deny(); if (Cloud) throw new Error('Reset is off while the app uses Firebase.'); db = buildSeed(); write(); emit(); },
   };
 })();
 
@@ -1255,6 +1555,7 @@ function resetViewState() {
 /* Signing out forgets the data key and reloads, so nothing decrypted stays on the page */
 async function signOut() {
   flushNotes();
+  if (CLOUD) { try { await Cloud?.signOut(); } catch {} location.reload(); return; }
   await Vault.idle();
   Vault.signOut(); ui.auth = null;
   location.reload();
@@ -1440,6 +1741,7 @@ function restoreFocus(f) {
 }
 
 function render() {
+  if (CLOUD && (ui.cloud !== 'ready' || ui.setupBusy)) return renderGate();
   const state = sessionState();
   document.body.dataset.state = state;
   renderHeader(state);
@@ -1495,7 +1797,8 @@ function renderMain() {
   const key = ui.view === 'calendar' ? `${m}|${m === 'week' ? weekStart(ui.cal.date) : m === 'month' ? monthStart(ui.cal.date) + ui.cal.order : ui.cal.date}|${ui.tutorView}` : '';
   const tg = $('#tg') || $('#mt');
   const keep = tg && ui.tgKey === key ? { t:tg.scrollTop, l:tg.scrollLeft } : null;
-  main.innerHTML = ui.view === 'board' ? boardHTML() : ui.view === 'calendar' ? calendarHTML() : billingHTML();
+  if (CLOUD) Repo.ensureMonths(neededMonths());
+  main.innerHTML = (ui.cloudError ? `<div class="notice cloud-note" role="status"><span>${esc(ui.cloudError)}</span></div>` : '') + (ui.view === 'board' ? boardHTML() : ui.view === 'calendar' ? calendarHTML() : billingHTML());
   document.body.classList.toggle('has-bulkbar', ui.view === 'board' && ui.selectMode);
   restoreFocus(f);
   const tg2 = $('#tg');
@@ -1513,6 +1816,97 @@ function renderMain() {
     else { const row = mt.querySelector('.mt-row.today'); mt.scrollTop = row ? Math.max(0, row.offsetTop - 120) : 0; }
     ui.tgKey = key;
   } else ui.tgKey = null;
+}
+
+/* ---------- Firebase: sign-in, first-run setup, loading ---------- */
+function closeOverlays() {
+  if (ui.doc) closeDoc();
+  ui.openClassId = null; $('#drawer-root').innerHTML = ''; $('#modal-root').innerHTML = ''; fs = null;
+  document.body.classList.remove('no-scroll');
+}
+function renderGate() {
+  document.body.dataset.state = 'out';
+  $('#brand-name').textContent = 'Class Planner'; document.title = 'Class Planner';
+  updateClock();
+  const card = inner => `<div class="auth-wrap"><div class="auth-card">${inner}</div></div>`;
+  let html;
+  if (ui.setupBusy) html = card(`<h1>Setting up</h1><p>${esc(ui.setupBusy)}</p><div class="setup-progress"><i style="width:${Math.round((ui.setupPct || 0) * 100)}%"></i></div><p class="hint">Keep this page open until it finishes.</p>`);
+  else if (ui.cloud === 'boot' || ui.cloud === 'loading') html = card(`<h1>Class Planner</h1><p class="muted">${ui.cloud === 'boot' ? 'Connecting to Firebase…' : 'Loading your classes…'}</p>`);
+  else if (ui.cloud === 'error') html = card(`<h1>Can’t open the app</h1><p class="form-error" role="alert">${esc(ui.cloudFail || 'Something went wrong.')}</p><div class="row"><button type="button" class="btn btn-primary" data-action="reload">Try again</button>${ui.auth ? '<button type="button" class="btn" data-action="sign-out">Sign out</button>' : ''}</div>`);
+  else if (ui.cloud === 'setup') html = setupImportHTML();
+  else if (ui.gate === 'setup-account') html = setupAccountHTML();
+  else html = cloudSignInHTML();
+  if (ui.lastScreen !== html) {
+    $('#view').innerHTML = html; ui.lastScreen = html;
+    const first = $('#view input:not([type=hidden]):not([type=radio])'); if (first && !first.value) first.focus();
+  }
+}
+const errLine = () => ui.signInError ? `<p class="form-error" role="alert">${esc(ui.signInError)}</p>` : '';
+function cloudSignInHTML() {
+  return `<div class="auth-wrap"><form class="auth-card signin-form" data-form="cloud-sign-in" novalidate>
+    <h1>Sign in</h1>
+    <p class="muted">Use the email and password the office gave you.</p>
+    <div class="field"><label for="si-email">Email</label><input id="si-email" name="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(ui.signInEmail || '')}"></div>
+    ${pwField('si-pw', 'Password', 'current-password')}
+    ${errLine()}${ui.signInNote ? `<p class="hint" role="status">${esc(ui.signInNote)}</p>` : ''}
+    <button type="submit" class="btn btn-primary" id="si-go">Sign in</button>
+    <button type="button" class="link-btn" data-action="forgot-pw">Forgot your password?</button>
+    ${ui.rulesMissing ? `<div class="notice"><span>Firebase isn’t ready yet: publish the rules from firestore.rules in Firebase → Firestore Database → Rules, then reload this page.</span></div>` : ''}
+    ${ui.setupOpen ? `<div class="notice"><span>Setting up the app for the first time?</span><button type="button" class="btn btn-sm" data-action="setup-start">Create the admin account</button></div>` : ''}
+  </form></div>`;
+}
+function setupAccountHTML() {
+  return `<div class="auth-wrap"><form class="auth-card signin-form" data-form="setup-account" novalidate>
+    <button type="button" class="btn btn-sm btn-ghost signin-back" data-action="setup-back">${icon('left', 'icon icon-xs')}Sign in</button>
+    <h1>Create the admin account</h1>
+    <p class="muted">The first account becomes the school’s admin. Use an email you can receive mail at, so you can reset the password later.</p>
+    <div class="field"><label for="su-name">Your name</label><input id="su-name" name="name" type="text" autocomplete="name" value="${esc(ui.setupName ?? 'Office Admin')}"></div>
+    <div class="field"><label for="su-email">Email</label><input id="su-email" name="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(ui.signInEmail || '')}"></div>
+    ${pwField('su-pw', 'Password (at least 8 characters)', 'new-password')}
+    <div class="field"><label for="su-pw2">Password again</label><input id="su-pw2" name="again" type="password" autocomplete="new-password"></div>
+    ${errLine()}
+    <button type="submit" class="btn btn-primary" id="su-go">Create admin account</button>
+  </form></div>`;
+}
+const localSaved = () => { try { return !!(localStorage.getItem(SEALED_DB_KEY) || localStorage.getItem(DB_KEY)); } catch { return false; } };
+function setupImportHTML() {
+  const has = localSaved(), pick = ui.setupSource || (has ? 'local' : 'timetable');
+  const opt = (v, label, hint) => `<label class="radio"><input type="radio" name="source" value="${v}" ${pick === v ? 'checked' : ''} data-change="setup-source"><span>${label}${hint ? `<br><span class="hint">${hint}</span>` : ''}</span></label>`;
+  return `<div class="auth-wrap"><form class="auth-card signin-form" data-form="setup-import" novalidate>
+    <h1>Bring your data into Firebase</h1>
+    <p>Signed in as <strong>${esc(ui.auth?.email)}</strong>. This account becomes the admin, and everyone will share the data from now on.</p>
+    <fieldset><legend>Start from</legend>
+      ${has ? opt('local', 'The data saved in this browser', 'Best choice: keeps rates, colours, cancellations and paid ticks you set here.') : ''}
+      ${opt('timetable', 'The September–November timetable inside the app', 'Rates, prices and colours start from the defaults.')}
+      ${opt('json', 'A JSON file exported from the old app', 'Manage → Export data (JSON) in the old version.')}
+    </fieldset>
+    ${pick === 'json' ? `<div class="field"><label for="setup-file">JSON file</label><input id="setup-file" name="file" type="file" accept="application/json,.json"></div>`
+      : pwField('setup-oldpw', 'Office Admin password from the old version', 'off') + '<p class="hint" style="margin-top:-8px">The data inside the old app is locked with it. It’s only used now, on this computer.</p>'}
+    ${errLine()}
+    <button type="submit" class="btn btn-primary" id="setup-go">Finish setup</button>
+    <button type="button" class="link-btn" data-action="sign-out">Use a different account</button>
+  </form></div>`;
+}
+function changePasswordModal() {
+  $('#modal-root').innerHTML = `<div class="modal-back" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="cp-h">
+    <form data-form="change-pw" novalidate>
+      <div class="modal-head"><h2 id="cp-h">Change password</h2><button type="button" class="btn btn-ghost" data-action="modal-close" aria-label="Close">${icon('x')}</button></div>
+      <div class="modal-body" style="display:grid;gap:12px">
+        <div class="field"><label for="cp-cur">Current password</label><input id="cp-cur" name="current" type="password" autocomplete="current-password"></div>
+        <div class="field"><label for="cp-new">New password</label><input id="cp-new" name="next" type="password" autocomplete="new-password"><span class="hint">At least 8 characters. Three or four words are easy to remember.</span></div>
+        <div class="field"><label for="cp-again">New password again</label><input id="cp-again" name="again" type="password" autocomplete="new-password"></div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn" data-action="modal-close">Cancel</button><button type="submit" class="btn btn-primary" id="cp-go">Change password</button></div>
+    </form></div></div>`;
+  document.body.classList.add('no-scroll'); $('#cp-cur').focus();
+}
+/* Months the current screen needs from Firestore */
+function neededMonths() {
+  const t = bkkNow().date, mo = d => d.slice(0, 7), out = new Set([-1, 0, 1].map(n => mo(addMonths(t, n))));
+  if (ui.view === 'board') { const r = ui.filters.range || defaultRange(); if (r.startsWith('m:')) out.add(r.slice(2)); }
+  if (ui.view === 'calendar' && ui.cal.date) { const d = ui.cal.date, ws = weekStart(d); out.add(mo(d)); if (ui.cal.mode === 'week') { out.add(mo(ws)); out.add(mo(addDays(ws, 6))); } }
+  if (ui.view === 'billing') { const end = billMonth(); for (let x = Repo.settings().firstMonth || end; x <= end; x = nextMonth(x)) out.add(x); }
+  return [...out];
 }
 
 /* ---------- Sign-in screens (shown before any data is opened) ---------- */
@@ -2567,6 +2961,7 @@ function onFormInput(e) {
   const t = e.target; if (!fs || t.id === 'cf-stu-q') return;
   const prevS = fs.draft.startTime, prevE = fs.draft.endTime;
   readForm(); fs.dirty = true;
+  if (CLOUD && t.name === 'date' && /^\d{4}-\d\d/.test(fs.draft.date)) Repo.ensureMonths([fs.draft.date.slice(0, 7)]).then(() => fs && renderAvail());
   if (t.name === 'startTime' && fs.draft.startTime && prevS && prevE && prevS !== fs.draft.startTime) {
     const dur = toMin(prevE) - toMin(prevS), ne = toMin(fs.draft.startTime) + dur;
     if (dur > 0 && ne <= LAST_SLOT) { fs.draft.endTime = fromMin(ne); setTimeSelect(t.form.elements.endTime, fs.draft.endTime); }
@@ -2753,15 +3148,30 @@ function accountsTabHTML() {
     return o('pending', 'No access yet') + o('admin', 'Admin')
       + tutors.filter(t => t.active !== false || u.tutorId === t.id).map(t => { const other = t.linkedUid && t.linkedUid !== u.id; return o(`tutor:${t.id}`, `Tutor: ${t.name}${other ? ' (linked to another account)' : ''}`, other); }).join('');
   };
-  return `<p class="hint" style="margin-bottom:12px">Access decides what each person sees after they sign in. A tutor sees only their own classes. Tutors whose email is saved in Tutors and rates are linked automatically.</p>
-    <div class="table-wrap"><table class="tbl"><thead><tr><th>Account</th><th>First signed in</th><th>Access</th></tr></thead><tbody>
+  return `<p class="hint" style="margin-bottom:12px">${CLOUD ? 'Everyone signs in with their own email and password. Access decides what they see: a tutor sees only their own classes.' : 'Access decides what each person sees after they sign in. A tutor sees only their own classes. Tutors whose email is saved in Tutors and rates are linked automatically.'}</p>
+    <div class="table-wrap"><table class="tbl"><thead><tr><th>Account</th><th>First signed in</th><th>Access</th>${CLOUD ? '<th></th>' : ''}</tr></thead><tbody>
     ${users.map(u => `<tr class="${u.role === 'pending' ? 'pending' : ''}${u.id === ui.acctFocus ? ' focus' : ''}" data-uid="${u.id}">
       <td class="who"><strong>${esc(u.displayName)}${u.id === ui.auth.uid ? ' <span class="tag">You</span>' : ''}</strong><span>${esc(u.email)}</span></td>
       <td>${u.createdAt ? fmtStamp(u.createdAt) : '—'}</td>
       <td><select class="access" data-change="access" data-uid="${u.id}" aria-label="Access for ${esc(u.email)}">${options(u)}</select></td>
+      ${CLOUD ? `<td><button type="button" class="btn btn-sm" data-action="acct-reset" data-email="${esc(u.email)}">Send reset link</button></td>` : ''}
     </tr>`).join('')}
     </tbody></table></div>
-    ${passwordsHTML()}`;
+    ${CLOUD ? addAccountHTML(tutors) : passwordsHTML()}`;
+}
+function addAccountHTML(tutors) {
+  const taken = new Set(Repo.users().map(u => u.tutorId).filter(Boolean));
+  return `<form class="settings-form" data-form="add-account" style="margin-top:24px" autocomplete="off" novalidate>
+    <h3 class="h-sm" style="margin:0">Add a sign-in account</h3>
+    <p class="hint">Make an account for a tutor (or another admin), then give them the email and password. They can change the password themselves in the account menu.</p>
+    <div class="add-acct">
+      <div class="field"><label for="aa-name">Name</label><input id="aa-name" name="name" type="text" placeholder="e.g. Kru Aom"></div>
+      <div class="field"><label for="aa-email">Email</label><input id="aa-email" name="email" type="email" autocapitalize="none" spellcheck="false" placeholder="name@gmail.com"></div>
+      <div class="field"><label for="aa-access">Access</label><select id="aa-access" name="access">${tutors.filter(t => t.active !== false).map(t => `<option value="tutor:${esc(t.id)}" ${taken.has(t.id) ? '' : ''}>Tutor: ${esc(t.name)}${taken.has(t.id) ? ' (has an account)' : ''}</option>`).join('')}<option value="admin">Admin</option></select></div>
+      <div class="field"><label for="aa-pw">First password</label><input id="aa-pw" name="password" type="text" autocomplete="off" spellcheck="false" placeholder="At least 8 characters"></div>
+      <div><button type="submit" class="btn btn-primary" id="aa-go">Create account</button></div>
+    </div>
+  </form>`;
 }
 function passwordsHTML() {
   const accts = Vault.accounts(), done = Vault.changed().map(uid => Vault.account(uid)?.displayName).filter(Boolean);
@@ -2957,6 +3367,78 @@ async function onAccessChange(el) {
 }
 async function onFormSubmit(form) {
   const fd = new FormData(form), kind = form.dataset.form;
+  const busy = (id, label) => { const b = document.getElementById(id); if (b) { b.disabled = true; b.textContent = label; } };
+  if (kind === 'cloud-sign-in') {
+    const email = String(fd.get('email') || '').trim().toLowerCase(), pw = String(fd.get('password') || '');
+    ui.signInEmail = email; ui.signInNote = '';
+    if (!email || !pw) { ui.signInError = 'Enter your email and password.'; return renderGate(); }
+    busy('si-go', 'Signing in…');
+    try { await Cloud.signIn(email, pw); ui.signInError = ''; }
+    catch (e) { ui.signInError = authMessage(e); ui.lastScreen = ''; renderGate(); }
+    return;
+  }
+  if (kind === 'setup-account') {
+    const name = String(fd.get('name') || '').trim() || 'Office Admin', email = String(fd.get('email') || '').trim().toLowerCase();
+    const pw = String(fd.get('password') || ''), again = String(fd.get('again') || '');
+    ui.setupName = name; ui.signInEmail = email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { ui.signInError = 'Enter a full email address.'; ui.lastScreen = ''; return renderGate(); }
+    if (pw.length < 8) { ui.signInError = 'Use at least 8 characters for the password.'; ui.lastScreen = ''; return renderGate(); }
+    if (pw !== again) { ui.signInError = 'The two passwords don’t match.'; ui.lastScreen = ''; return renderGate(); }
+    busy('su-go', 'Creating…');
+    try { await Cloud.signUp(email, pw, name); ui.signInError = ''; ui.gate = null; ui.signInEmail = email; }
+    catch (e) { ui.signInError = authMessage(e); ui.lastScreen = ''; renderGate(); }
+    return;
+  }
+  if (kind === 'setup-import') {
+    const source = String(fd.get('source') || 'timetable'), oldPw = String(fd.get('password') || '');
+    let data;
+    try {
+      if (source === 'json') {
+        const file = fd.get('file');
+        if (!file || !file.size) throw new Error('Choose the JSON file first.');
+        data = JSON.parse(await file.text());
+        if (!data?.classes || !data?.students) throw new Error('This file isn’t a Class Planner export.');
+      } else {
+        if (!cleanPw(oldPw)) throw new Error('Enter the Office Admin password from the old version.');
+        busy('setup-go', 'Opening…');
+        if (!(await Vault.signIn('uid_admin', oldPw))) throw new Error('That isn’t the Office Admin password from the old version.');
+        if (source === 'local') { const local = await Vault.loadLocal(); if (!local.db) throw new Error('This browser’s saved data can’t be opened with that password. Choose the timetable instead.'); data = local.db; }
+        else data = buildSeed();
+        Repo.prepare(data);
+        Vault.signOut();
+      }
+    } catch (e) { ui.signInError = e.message || 'Couldn’t read the data.'; ui.lastScreen = ''; return renderGate(); }
+    ui.signInError = ''; ui.setupBusy = 'Saving to Firebase…'; ui.setupPct = 0; renderGate();
+    try {
+      const n = await Repo.bootstrap(data, { ...ui.auth, displayName:ui.auth.displayName || 'Office Admin' }, (done, all) => { ui.setupBusy = `Saving to Firebase… ${done.toLocaleString()} of ${all.toLocaleString()}`; ui.setupPct = done / all; ui.lastScreen = ''; renderGate(); });
+      ui.setupBusy = null; ui.setupOpen = false; render();
+      toast(`Setup finished: ${n.toLocaleString()} records are in Firebase. Next, add an account for each tutor in Manage → Accounts.`, { action:{ label:'Accounts', fn:() => openManage('accounts') } });
+    } catch (e) { console.error(e); ui.setupBusy = null; ui.signInError = e.code === 'permission-denied' ? 'Firebase refused the setup. Check that the rules from firestore.rules are published, or the app may already be set up.' : (e.message || 'Setup failed.'); ui.lastScreen = ''; renderGate(); }
+    return;
+  }
+  if (kind === 'change-pw') {
+    const cur = String(fd.get('current') || ''), next = String(fd.get('next') || ''), again = String(fd.get('again') || '');
+    if (next.length < 8) { toast('Use at least 8 characters for the new password.', { tone:'warn' }); return; }
+    if (next !== again) { toast('The two new passwords don’t match.', { tone:'warn' }); return; }
+    busy('cp-go', 'Changing…');
+    try { await Cloud.changePassword(cur, next); closeModal(true); toast('Password changed. Use the new one next time you sign in.'); }
+    catch (e) { toast(e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' ? 'The current password isn’t right.' : authMessage(e), { tone:'warn' }); const b = $('#cp-go'); if (b) { b.disabled = false; b.textContent = 'Change password'; } }
+    return;
+  }
+  if (kind === 'add-account') {
+    const name = String(fd.get('name') || '').trim(), email = String(fd.get('email') || '').trim().toLowerCase(), access = String(fd.get('access') || ''), pw = String(fd.get('password') || '');
+    if (!name) { toast('Type the person’s name.', { tone:'warn' }); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Enter a full email address.', { tone:'warn' }); return; }
+    if (pw.length < 8) { toast('Make the first password at least 8 characters.', { tone:'warn' }); return; }
+    busy('aa-go', 'Creating…');
+    let uid;
+    try { uid = await Cloud.createAccount(email, pw, name); }
+    catch (e) { toast(e.code === 'auth/email-already-in-use' ? 'An account with this email already exists. If it’s in the list above, choose its access there.' : authMessage(e), { tone:'warn' }); renderManage(); return; }
+    const r = await run(() => Repo.addProfile(uid, { email, displayName:name, access }));
+    renderManage();
+    if (r.ok) toast(`Account made for ${name}. Give them the email ${email} and the password you set.`);
+    return;
+  }
   if (kind === 'sign-in') {
     const pw = String(fd.get('password') || ''), uid = ui.signInFor;
     if (!cleanPw(pw)) { ui.signInError = 'Enter your password.'; return showSignIn(); }
@@ -3029,6 +3511,7 @@ async function onFormSubmit(form) {
 
 /* ---------- Data: export / import / reset ---------- */
 async function exportData() {
+  if (CLOUD) { toast('Collecting every class…'); await Repo.loadAll(); }
   const r = await run(() => Repo.exportJson()); if (!r.ok) return;
   const blob = new Blob([r.value], { type:'application/json' });
   const a = document.createElement('a');
@@ -3085,6 +3568,21 @@ const actions = {
   'pick-account': el => { ui.signInFor = el.dataset.uid; ui.signInError = ''; showSignIn(); },
   'sign-in-back': () => { ui.signInFor = null; ui.signInError = ''; showSignIn(); },
   'sign-out': () => signOut(),
+  'reload': () => location.reload(),
+  'change-pw': () => changePasswordModal(),
+  'setup-start': () => { ui.gate = 'setup-account'; ui.signInError = ''; renderGate(); },
+  'setup-back': () => { ui.gate = null; ui.signInError = ''; renderGate(); },
+  'forgot-pw': async () => {
+    const email = ($('#si-email')?.value || '').trim().toLowerCase();
+    ui.signInEmail = email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { ui.signInError = 'Type your email above first, then choose Forgot your password.'; ui.signInNote = ''; ui.lastScreen = ''; return renderGate(); }
+    try { await Cloud.resetPassword(email); } catch (e) { if (e.code === 'auth/invalid-email') { ui.signInError = authMessage(e); ui.lastScreen = ''; return renderGate(); } }
+    ui.signInError = ''; ui.signInNote = `If ${email} has an account, a link to set a new password is on its way. Check the inbox and spam folder.`; ui.lastScreen = ''; renderGate();
+  },
+  'acct-reset': async el => {
+    try { await Cloud.resetPassword(el.dataset.email); toast(`A link to set a new password was sent to ${el.dataset.email}.`); }
+    catch (e) { toast(authMessage(e), { tone:'warn' }); }
+  },
   'toggle-pw': el => {
     const input = document.getElementById(el.dataset.target); if (!input) return;
     const show = input.type === 'password'; input.type = show ? 'text' : 'password';
@@ -3198,6 +3696,7 @@ function onChange(e) {
     case 'cc-when': return onCcWhen(t);
     case 'tutor-email': return onTutorEmail(t);
     case 'pay-mark': return onPayMark(t);
+    case 'setup-source': ui.setupSource = t.value; ui.signInError = ''; return renderGate();
     case 'doc-every': ui.doc.every = t.checked; return renderDoc();
   }
   if (t.dataset.filter && t.type !== 'search') { ui.filters[t.dataset.filter] = t.type === 'checkbox' ? t.checked : t.value; renderMain(); renderHeader(sessionState()); return; }
@@ -3386,6 +3885,7 @@ async function init() {
   });
   $('#import-file').addEventListener('change', onImportFile);
   bindDnD();
+  if (CLOUD) return bootCloud();
   const uid = Vault.supported() ? await Vault.resume() : null;
   if (uid) await openSavedData(uid, false); else showSignIn();
 }
@@ -3396,6 +3896,47 @@ async function openSavedData(uid, fresh) {
   return startApp(local.db, uid, fresh);
 }
 let started = false;
+function startOnce() {
+  if (started) return;
+  started = true;
+  ui.cal.date = bkkNow().date; lastMinute = bkkNow().min;
+  Repo.onChange(() => render());
+  setInterval(tickClock, 15000);
+}
+/* With Firebase: connect, then follow the signed-in account */
+async function bootCloud() {
+  document.body.classList.add('cloud');
+  Repo.blank(); ui.cloud = 'boot'; renderGate();
+  try { Cloud = await connectCloud(); }
+  catch (e) {
+    console.error(e); ui.cloud = 'error';
+    ui.cloudFail = location.protocol === 'file:' ? 'Open the app from its web address (Vercel). It can’t reach Firebase when opened as a file.' : 'Couldn’t load Firebase. Check the internet connection, then try again.';
+    return renderGate();
+  }
+  Cloud.get('meta/public').then(p => { ui.setupOpen = !p; ui.rulesMissing = false; ui.lastScreen = ''; if (ui.cloud === 'out') renderGate(); })
+    .catch(e => { ui.rulesMissing = e?.code === 'permission-denied'; ui.lastScreen = ''; if (ui.cloud === 'out') renderGate(); });
+  Cloud.onAuth(user => onCloudAuth(user));
+}
+function onCloudAuth(user) {
+  Repo.disconnect(); closeOverlays();
+  if (!user) { ui.auth = null; ui.cloud = 'out'; ui.lastScreen = ''; return renderGate(); }
+  ui.auth = { uid:user.uid, email:user.email, displayName:user.displayName || user.email.split('@')[0] };
+  ui.cloud = 'loading'; ui.lastScreen = ''; renderGate(); startOnce();
+  Repo.connect(ui.auth, (status, err) => {
+    ui.cloud = status; ui.cloudFail = err ? (err.code === 'permission-denied' ? 'Firebase refused to load your data. Ask the office to check the rules (firestore.rules) are published.' : err.message || String(err)) : null;
+    ui.lastScreen = '';
+    if (status === 'ready') {
+      const p = Repo.profile();
+      if (p?.displayName) ui.auth.displayName = p.displayName;
+      render();
+      if (isAdmin() && !ui.toldPending) {
+        ui.toldPending = true;
+        const n = Repo.users().filter(u => u.role === 'pending').length;
+        if (n) toast(`${plural(n, 'account is', 'accounts are')} waiting for access.`, { action:{ label:'Review', fn:() => openManage('accounts') } });
+      }
+    } else renderGate();
+  });
+}
 async function startApp(saved, uid, fresh) {
   const added = Repo.init(saved);
   if (!started) {
