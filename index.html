@@ -1007,7 +1007,8 @@ async function connectCloud() {
     getAll:async (col, filters) => (await FB.getDocs(q(col, filters))).docs.map(d => ({ id:d.id, data:d.data() })),
     listen:(col, filters, onChanges, onError) => FB.onSnapshot(q(col, filters),
       snap => onChanges(snap.docChanges().map(ch => ({ type:ch.type, id:ch.doc.id, data:ch.doc.data() }))), onError),
-    listenDoc:(path, onData, onError) => FB.onSnapshot(ref(path), d => onData(d.exists() ? d.data() : null), onError),
+    listenDoc:(path, onData, onError) => FB.onSnapshot(ref(path), { includeMetadataChanges:true },
+      d => { if (!d.metadata.hasPendingWrites) onData(d.exists() ? d.data() : null); }, onError),   // only what the server has confirmed
     /* writes: [{ type:'set'|'update'|'delete', path:'col/id', data | fields }]: one atomic batch (500 at most) */
     async commit(writes) {
       const b = FB.writeBatch(fs);
@@ -1245,7 +1246,7 @@ const Repo = (() => {
     }
     return Promise.all(jobs);
   }
-  async function resubscribe(next) {
+  async function resubscribe(next, retry = 0) {
     for (const k of [...subs.keys()]) if (k !== 'me') unsub(k);
     loadedMonths.clear(); tutorAll = false; ui.cloudError = null;
     role = next;
@@ -1255,7 +1256,11 @@ const Repo = (() => {
       ? [sub('users', 'users', []), sub('tutors', 'tutors', []), sub('tutorRates', 'tutorRates', []), sub('students', 'students', []), subDoc('settings', 'settings', 'app')]
       : [subDoc('tutor', 'tutors', tid), subDoc('settings', 'settings', 'app')];
     try { await Promise.all([...core, ensureMonths(win)]); onStatus('ready'); }
-    catch (e) { onStatus('error', e); }
+    catch (e) {
+      // just after setup or a role change the server can lag a moment behind: try again before giving up
+      if (e?.code === 'permission-denied' && retry < 3 && role === next) { await new Promise(r => setTimeout(r, 1500)); if (role === next) return resubscribe(next, retry + 1); }
+      onStatus('error', e);
+    }
   }
   /* Physical Firestore writes for a set of logical changes (classes + classProgress become one document) */
   function physical(staged) {
