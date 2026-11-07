@@ -225,9 +225,9 @@ button.tg-head:hover{background:#F6F8FB}
 .ev strong{font-size:12.5px}
 .ev-time{font-weight:700;opacity:.85;font-variant-numeric:tabular-nums}
 .ev-sub{opacity:.85}
-.ev.cc,.mt-ev.cc{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--qc) 30%,#fff) 0 5px,#fff 5px 10px);color:var(--ink);border-left-style:dashed;opacity:.92}
+.ev.cc{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--qc) 30%,#fff) 0 5px,#fff 5px 10px);color:var(--ink);border-left-style:dashed;opacity:.92}
 .ev.cc .ev-time,.ev.cc .ev-sub{opacity:.75}
-.ev .flag,.mt-ev .flag{position:absolute;top:4px;right:4px;box-shadow:0 0 0 1.5px #fff}
+.ev .flag{position:absolute;top:4px;right:4px;box-shadow:0 0 0 1.5px #fff}
 .free{position:absolute;left:4px;right:4px;z-index:1;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1.5px dashed #8EA8D2;border-radius:5px;background:repeating-linear-gradient(135deg,rgba(34,96,211,.07) 0 6px,transparent 6px 12px);color:#1E4FA8;font-size:12px;padding:3px 7px;text-align:left;overflow:hidden}
 button.free{cursor:pointer}
 button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
@@ -240,45 +240,48 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .mt-stats{margin-left:auto;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;font-size:13.5px;color:var(--ink-2)}
 .mt-stats .bad{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center;font-weight:700}
 .mt-stats .bad button{border:0;background:none;padding:0;color:var(--red);font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.mt{position:relative;background:var(--sheet);border:1px solid var(--rule);border-radius:10px;overflow:auto;max-height:calc(100vh - 240px);min-height:380px}
-.mt-inner{min-width:calc(var(--lw) + var(--hours) * 72px)}
-.mt-head,.mt-row{display:grid;grid-template-columns:var(--lw) minmax(0,1fr)}
-.mt-head{position:sticky;top:0;z-index:4;background:var(--sheet);border-bottom:1px solid var(--rule);height:30px}
-.mt-corner{position:sticky;left:0;z-index:5;background:var(--sheet);display:flex;align-items:center;padding:0 10px;font-size:11px;color:var(--ink-3);border-right:2px solid var(--margin-line)}
-.mt-hours{position:relative}
-.mt-hours span{position:absolute;top:8px;transform:translateX(3px);font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
-.mt-hours span.half{font-size:10.5px;color:#9AA4B6}
-.mt-row{border-bottom:1px solid var(--rule-2)}
-.mt-row.dstart{border-top:1px solid #C6CFDC}
-.mt-row.wk{border-top:2px solid #A9B5C8}
-.mt-label{position:sticky;left:0;z-index:2;display:flex;align-items:center;gap:6px;min-width:0;height:var(--rh);padding:0 6px 0 8px;background:var(--sheet);border-right:2px solid var(--margin-line);font-size:12.5px}
-.mt-day{flex:none;width:54px;border:0;background:transparent;padding:1px 4px;border-radius:4px;text-align:left;white-space:nowrap;color:var(--ink-2);font-size:12.5px;cursor:pointer}
-span.mt-day{cursor:default}
-button.mt-day:hover{background:var(--paper)}
-.mt-day strong{color:var(--ink);font-size:13px}
-.mt-row.today .mt-label{background:var(--today)}
-.mt-row.today .mt-day strong{background:var(--hl);padding:0 4px;border-radius:3px}
-.mt-tutor{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
-.mt-label .flag{margin-left:auto}
-.mt-track{position:relative;height:var(--rh);background-image:linear-gradient(to right,#D9DFE8 0 1px,transparent 1px),linear-gradient(to right,#EDF0F4 0 1px,transparent 1px);background-size:calc(100% / var(--hours)) 100%,calc(100% / var(--hours) / 2) 100%}
-.mt-row.today .mt-track{background-color:var(--today)}
-.mt-closed{position:absolute;top:0;bottom:0;background:#F3F5F8}
-.mt-free{position:absolute;top:3px;bottom:3px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;line-height:1.1;overflow:hidden;white-space:nowrap;padding:0 3px;border:1px dashed #8EA8D2;border-radius:3px;background:repeating-linear-gradient(135deg,rgba(34,96,211,.08) 0 5px,transparent 5px 10px);color:#1E4FA8;font-size:11.5px;font-weight:700}
-button.mt-free{cursor:pointer}
-button.mt-free:hover{background:rgba(34,96,211,.14);border:1px solid var(--focus)}
-.mt-free.past{opacity:.5}
-.mt-ev{position:absolute;z-index:1;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;overflow:hidden;white-space:nowrap;padding:0 2px 0 4px;border:0;border-left:3px solid color-mix(in srgb,var(--qc) 60%,#000);border-radius:3px;background:var(--qc);color:var(--qt);line-height:1.1;text-align:left;cursor:pointer;box-shadow:0 0 0 1px #fff}
-.mt-ev:hover{box-shadow:inset 0 0 0 999px rgba(0,0,0,.08),0 0 0 1px #fff}
-.mt-t,.mt-n{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.mt-t{font-size:10px;font-weight:700;letter-spacing:-.2px;opacity:.88}
-.mt-n{font-size:12px;font-weight:700}
-.mt-ev.clash{z-index:2;box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px var(--red)}
-.mt-ev.clash .mt-n{font-size:10px}
-.mt-ev .flag{width:6px;height:6px;top:3px;right:3px}
-.mt-now{position:absolute;top:0;bottom:0;z-index:3;width:2px;background:var(--red);pointer-events:none}
-.mt-group{padding:6px 10px;background:var(--paper);border-bottom:1px solid var(--rule);font-weight:700;font-size:13.5px}
-.mt-group>span{position:sticky;left:10px}
-.mt-group .muted{font-size:12.5px;margin-left:6px}
+.tchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-2px 0 10px}
+.tchips-l{font-size:13px;font-weight:700;color:var(--ink-2);margin-right:2px}
+.tchip{--tc:#5B6B86;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--rule);background:var(--sheet);color:var(--ink-2);border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:34px}
+.tchip::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--tc)}
+.tchip.all::before{display:none}
+.tchip[aria-pressed=true]{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 14%,#fff);color:var(--ink)}
+.tchip.all[aria-pressed=true]{border-color:var(--ink-2);background:var(--paper)}
+.tchips .hint{margin-left:4px}
+.tg-person{border-top:3px solid var(--tc,transparent)}
+.mg{position:relative;background:var(--sheet);border:1px solid var(--rule);border-radius:10px;overflow:auto;max-height:calc(100vh - 230px);min-height:420px;-webkit-overflow-scrolling:touch}
+.mg-inner{display:grid;min-width:fit-content}
+.mg-corner{position:sticky;left:0;top:0;z-index:6;background:var(--sheet);border-bottom:1px solid var(--rule);border-right:2px solid var(--margin-line);font-size:11px;color:var(--ink-3);display:flex;align-items:flex-end;padding:0 6px 6px}
+.mg-day{position:sticky;top:0;z-index:4;height:36px;display:flex;align-items:center;gap:4px;border:0;border-left:1px solid #C6CFDC;border-bottom:1px solid var(--rule);background:var(--sheet);padding:0 8px;font-size:12.5px;color:var(--ink-2);text-align:left;cursor:pointer;white-space:nowrap;min-width:0}
+.mg-day strong{font-size:15px;color:var(--ink)}
+.mg-day.wkend{background:#FAFBFD}
+.mg-day.today{background:var(--today)}
+.mg-day.today strong{background:var(--hl);padding:0 5px;border-radius:4px}
+.mg-day.wk,.mg-tutor.wk,.mg-col.wk,.mg-note.wk{border-left:2px solid #A9B5C8}
+.mg-day .flag{margin-left:auto}
+.mg-tutor{position:sticky;top:36px;z-index:4;height:22px;display:flex;align-items:center;gap:5px;padding:0 6px;background:var(--sheet);border-left:1px solid var(--rule-2);border-bottom:1px solid var(--rule);border-top:3px solid var(--tc);font-size:11.5px;font-weight:700;color:var(--ink-2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.mg-tutor.dstart,.mg-col.dstart,.mg-note.dstart{border-left:1px solid #C6CFDC}
+.mg-tutor.today{background:var(--today)}
+.mg-gutter{position:sticky;left:0;z-index:3;background:var(--sheet);border-right:2px solid var(--margin-line)}
+.mg-col{position:relative;border-left:1px solid var(--rule-2);background-image:linear-gradient(to bottom,var(--ruling) 1px,transparent 1px),linear-gradient(to bottom,var(--rule-2) 1px,transparent 1px);background-size:100% var(--hh),100% var(--hh);background-position:0 0,0 calc(var(--hh) / 2)}
+.mg-col.today{background-color:var(--today)}
+.mg-closed{position:absolute;left:0;right:0;background:rgba(236,239,244,.75)}
+.mg-free{left:2px;right:2px;padding:2px 4px;font-size:10.5px;line-height:1.15}
+.mg-free strong{font-size:10.5px}
+.mg-free.past{opacity:.45}
+.mg-ev{padding:2px 4px;font-size:10.5px;line-height:1.15;border-left-width:3px}
+.mg-ev strong{font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-ev .ev-time{font-size:10px}
+.mg-ev .ev-sub{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-ev.clash{z-index:2;box-shadow:0 0 0 1px #fff,0 0 0 2.5px var(--red)}
+.mg-ghost{left:auto !important;right:2px;width:42%;z-index:1}
+.mg-ev .flag{width:6px;height:6px;top:3px;right:3px}
+.mg-note-l{position:sticky;left:0;z-index:3;background:var(--paper);border-top:2px solid var(--rule);border-right:2px solid var(--margin-line);font-size:12px;font-weight:700;color:var(--ink-2);padding:8px 6px}
+.mg-note{border-top:2px solid var(--rule);border-left:1px solid var(--rule-2);background:var(--paper);padding:4px;min-height:72px}
+.mg-note.today{background:color-mix(in srgb,var(--today) 70%,var(--paper))}
+.mg-note textarea{width:100%;min-height:64px;resize:vertical;font-size:12px;line-height:1.3;padding:4px 5px;border-radius:5px;border:1px solid var(--rule);background:#fff}
+.mg-note textarea:placeholder-shown{background:transparent;border-style:dashed}
+.mg-note p{margin:0;font-size:12px;line-height:1.3;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
 .cal-jump{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--sheet);border:1.5px dashed #BFC8D6;border-radius:10px;padding:10px 14px;margin-bottom:10px;color:var(--ink-2);font-size:14px}
 .cal-empty{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:40px;text-align:center;color:var(--ink-3)}
 
@@ -427,6 +430,23 @@ button.mt-free:hover{background:rgba(34,96,211,.14);border:1px solid var(--focus
 .cc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:8px 0;border-bottom:1px dashed var(--rule-2)}
 .cc-row:last-child{border-bottom:0}
 .cc-row .check-inline{font-weight:700;white-space:normal}
+.cc-row.cc-tutor{border-bottom:1.5px solid var(--rule)}
+.cc-row.cc-tutor.on{background:var(--amber-soft);border-radius:6px;padding:8px}
+.busy-note{color:var(--red);font-size:12.5px;font-weight:700;text-align:right}
+.dup-note{display:flex;gap:6px;align-items:flex-start;margin:6px 0 10px;padding:8px 10px;border-radius:7px;background:var(--amber-soft);color:#6E4304;font-size:13px;line-height:1.35}
+.picker-results .dup-note{margin:0;border-radius:0}
+.rate-sum{font-size:13.5px;margin-bottom:4px;white-space:nowrap}
+.rate-row>td{background:var(--paper);padding:10px 12px 14px}
+.rates-grid{max-width:720px}
+.rate-tbl{background:var(--sheet)}
+.rate-tbl th[scope=row]{font-weight:700;white-space:nowrap}
+.rate-tbl .rate-default th,.rate-tbl .rate-default td{border-bottom:1.5px solid var(--rule)}
+.rate-tbl .rate-own th{color:#1E4FA8}
+.rate-tbl .rate-in input{width:110px}
+.rate-tbl th,.rate-tbl td{background:var(--sheet)}
+.rate-tbl input{color:var(--ink);font-weight:700}
+.rate-tbl input::placeholder{color:#AEB7C6;font-weight:400}
+.rate-price{font-weight:700;font-variant-numeric:tabular-nums}
 .cc-when{display:inline-flex;align-items:center;gap:6px;font-size:13px}
 .cc-when input,.cc-when select{width:auto;padding:4px 6px}
 .mat-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:6px}
@@ -489,7 +509,7 @@ button.mt-free:hover{background:rgba(34,96,211,.14);border:1px solid var(--focus
 .tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--ink)}
 .notice{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:8px;background:var(--amber-soft);color:#6E4304;margin-bottom:14px;font-size:14px}
 .add-row{display:grid;grid-template-columns:1.3fr .7fr 1.4fr auto;gap:8px;margin-bottom:14px;padding:12px;background:var(--paper);border-radius:8px}
-.add-row.tutors{grid-template-columns:1.3fr .8fr 1.5fr auto}
+.add-row.tutors{grid-template-columns:1.3fr .8fr .8fr 1.5fr auto}
 .table-wrap{overflow-x:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:14px}
 .tbl th{text-align:left;font-size:12.5px;color:var(--ink-3);padding:6px 6px;border-bottom:1px solid var(--rule)}
@@ -562,7 +582,7 @@ body.has-bulkbar .toasts{bottom:86px}
   .add-row,.add-row.tutors{grid-template-columns:1fr 1fr}
   .legend .hint{display:none}
   .mt-stats{margin-left:0}
-  .mt-inner{min-width:calc(var(--lw) + var(--hours) * 66px)}
+  .tchips .hint{display:none}
   .bulkbar{margin:-16px 14px 16px}
 }
 @media (max-width:600px){
@@ -646,6 +666,7 @@ body.has-bulkbar .toasts{bottom:86px}
    settings/app              schoolName, timezone, dayStart, dayEnd, rooms[],
                              ccDeadline 'HH:mm' (day before the class), payTutorLateCC, defaultStudentPrice,
                              docName, docDetails (header of pay slips and receipts)
+   dayNotes/{tutorId_date}   tutorId, date, text, updatedAt, updatedBy (admin writes; the tutor reads their own)
    payments/{kind_ref_month} kind 'tutor' | 'student', refId, month 'YYYY-MM', at, by, byName,
                              amount, minutes (what the slip or receipt said when it was ticked)   ADMIN ONLY
 
@@ -678,6 +699,7 @@ body.has-bulkbar .toasts{bottom:86px}
 const TZ = 'Asia/Bangkok', TZ_OFFSET = '+07:00';
 const DB_KEY = 'classPlanner.db.v3', UI_KEY = 'classPlanner.ui.v2', SCHEMA = 3;
 const PPM = 1.1; // calendar pixels per minute
+const MPPM = 0.9; // month calendar pixels per minute
 
 const QUALS = [
   { id:'pre_igcse', label:'Pre-IGCSE', color:'#3F88B8' },
@@ -1062,6 +1084,7 @@ const Rules = (() => {
       case 'tutorRates': return c.isAdmin;
       case 'students':   return c.isAdmin;
       case 'payments':   return c.isAdmin;
+      case 'dayNotes':   return c.isAdmin || teaches(c, data);
       case 'settings':   return c.isAdmin || c.isTutor;
       case 'classes':
       case 'classProgress': return c.isAdmin || teaches(c, data);
@@ -1093,7 +1116,7 @@ const Rules = (() => {
         if (c.isAdmin) return true;
         return op === 'update' && c.signedIn && !!before && before.linkedUid == null && !!c.email && before.email === c.email
           && changedOnly(before, after, ['linkedUid']) && after.linkedUid === auth.uid;
-      case 'tutorRates': case 'students': case 'settings': case 'classes': case 'payments':
+      case 'tutorRates': case 'students': case 'settings': case 'classes': case 'payments': case 'dayNotes':
         return c.isAdmin;
       default: return false;
     }
@@ -1112,7 +1135,7 @@ const Repo = (() => {
   const listeners = new Set();
   const auth = () => ui.auth;
   const write = () => { version++; if (!Cloud) Vault.save(db); };   // without Firebase: saved encrypted in this browser (see Vault)
-  const emptyDb = () => ({ schemaVersion:SCHEMA, ...Object.fromEntries([...COLLECTIONS, 'payments'].map(k => [k, {}])) });
+  const emptyDb = () => ({ schemaVersion:SCHEMA, ...Object.fromEntries([...COLLECTIONS, 'payments', 'dayNotes'].map(k => [k, {}])) });
   const emit = () => listeners.forEach(fn => fn());
   const newId = p => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const now = () => new Date().toISOString();
@@ -1137,7 +1160,7 @@ const Repo = (() => {
   }
   /* Bring data saved by earlier versions up to date (runs on every load, changes nothing twice) */
   function upgradeStored(x) {
-    x.payments ||= {};
+    x.payments ||= {}; x.dayNotes ||= {};
     keepNightOnEvening(x);
     for (const t of Object.values(x.tutors)) if (t.email === undefined) t.email = String((t.linkedUid && x.users[t.linkedUid]?.email) || '').toLowerCase();
     for (const [id, p] of Object.entries(x.classProgress)) {   // the import's "cancelled on the day" note becomes a late CC
@@ -1226,6 +1249,7 @@ const Repo = (() => {
     emit();
   }
   const tutorIdOf = r => r.startsWith('tutor:') ? r.slice(6) : null;
+  function notesError(err) { console.warn('Day notes unavailable:', err); ui.notesBlocked = true; emit(); }
   function classFilters(m) {
     const range = [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]];
     return role === 'admin' ? range : [['tutorId', '==', tutorIdOf(role)], ...range];
@@ -1242,13 +1266,17 @@ const Repo = (() => {
         if (tid && err?.code === 'failed-precondition') { console.warn('Index tutorId+date missing; loading all of this tutor’s classes.', err); tutorAll = true; ensureMonths([]); }
         else cloudError(err, key);
       }).catch(() => {}));
-      if (role === 'admin') jobs.push(sub(`payments:${m}`, 'payments', [['month', '==', m]]).catch(() => {}));
+      if (role === 'admin') {
+        jobs.push(sub(`payments:${m}`, 'payments', [['month', '==', m]]).catch(() => {}));
+        jobs.push(sub(`notes:${m}`, 'dayNotes', [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]], notesError).catch(() => {}));
+      }
     }
+    if (tid && !ui.notesBlocked) jobs.push(sub('notes', 'dayNotes', [['tutorId', '==', tid]], notesError).catch(() => {}));   // once blocked, don't retry on every render
     return Promise.all(jobs);
   }
   async function resubscribe(next, retry = 0) {
     for (const k of [...subs.keys()]) if (k !== 'me') unsub(k);
-    loadedMonths.clear(); tutorAll = false; ui.cloudError = null;
+    loadedMonths.clear(); tutorAll = false; ui.cloudError = null; ui.notesBlocked = false;
     role = next;
     if (role === 'pending') { onStatus('ready'); return; }
     const tid = tutorIdOf(role), t = bkkNow().date, win = [-1, 0, 1].map(n => addMonths(t, n).slice(0, 7));
@@ -1383,7 +1411,7 @@ const Repo = (() => {
       for (let i = 0; i < writes.length; i += 450) { await Cloud.commit(writes.slice(i, i + 450)); onProgress?.(Math.min(i + 450, writes.length), writes.length); }
       return writes.length;
     },
-    prepare(x) { x.payments ||= {}; upgradeStored(x); if (TIMETABLE) mergeTimetable(x); return x; },
+    prepare(x) { x.payments ||= {}; x.dayNotes ||= {}; upgradeStored(x); if (TIMETABLE) mergeTimetable(x); return x; },
     /* Admin: a profile for an account just made in Firebase Authentication */
     addProfile(uid, { email, displayName, access }) {
       const r = access.startsWith('tutor:') ? 'tutor' : access, tutorId = r === 'tutor' ? access.slice(6) : null, t = now(), ops = [];
@@ -1412,6 +1440,8 @@ const Repo = (() => {
     tutors: () => list('tutors'),
     tutor: id => doc('tutors', id),
     rates: () => Object.fromEntries(list('tutorRates').map(r => [r.id, r.hourlyRate])),
+    rateTable: () => Object.fromEntries(list('tutorRates').map(r => [r.id, r])),
+    dayNote: (tutorId, date) => list('dayNotes').find(n => n.id === `${tutorId}_${date}`)?.text || '',
     students: () => list('students'),
     student: id => doc('students', id),
     classes() {   // cached per data version and signed-in account; callers must not mutate it
@@ -1500,7 +1530,22 @@ const Repo = (() => {
       }
       await batch(ops); return tid;
     },
-    setRate: (tutorId, hourlyRate) => batch([{ op:'set', col:'tutorRates', id:tutorId, data:{ hourlyRate, currency:'THB', updatedAt:now(), updatedBy:auth()?.uid } }]),
+    setRate: (tutorId, hourlyRate) => Repo.saveRates(tutorId, { hourlyRate }),
+    /* tutorRates/{tutorId}: hourlyRate + instituteCut (any year), byYear.y10 = { pay, cut } for one year. null clears a value. */
+    saveRates(tutorId, patch) {
+      const next = JSON.parse(JSON.stringify(db.tutorRates[tutorId] || { hourlyRate:null, instituteCut:null, byYear:{}, currency:'THB' }));
+      next.byYear ||= {};
+      for (const [k, v] of Object.entries(patch)) setPath(next, k, v);
+      for (const [y, r] of Object.entries(next.byYear)) if (r.pay == null && r.cut == null) delete next.byYear[y];
+      return batch([{ op:'set', col:'tutorRates', id:tutorId, data:{ ...next, updatedAt:now(), updatedBy:auth()?.uid } }]);
+    },
+    /* The tutor cancelled: nobody is charged and the tutor isn't paid */
+    setTutorCancel: (id, rec) => batch([{ op:'update', col:'classes', id, patch:{ tutorCancel:rec || null, updatedAt:now() } }]),
+    setDayNote(tutorId, date, text) {
+      const id = `${tutorId}_${date}`, clean = String(text || '').trim().slice(0, 600);
+      if (!clean) return db.dayNotes[id] ? batch([{ op:'delete', col:'dayNotes', id }]) : Promise.resolve();
+      return batch([{ op:'set', col:'dayNotes', id, data:{ tutorId, date, text:clean, updatedAt:now(), updatedBy:auth()?.uid } }]);
+    },
     async saveStudent({ id, ...fields }) {
       if (Cloud && id && fields.name) await loadAll();
       const sid = id || newId('stu'), before = db.students[sid], ops = [];
@@ -1549,10 +1594,10 @@ const ui = {
   cal:{ mode:'week', date:null, order:'date', minGap:60 },
   billMonth:null, billTab:'students', billQ:'', acctFocus:null, selectMode:false, selected:new Set(), showAllDone:false, stuQ:'', popFor:null,
   openClassId:null, drawerEnter:false, msgKind:'reminder', msgDraft:null,
-  dragging:null, tgKey:null, manageTab:'tutors', confirmResolve:null, lastScreen:'',
+  dragging:null, tgKey:null, manageTab:'tutors', confirmResolve:null, lastScreen:'', calTutors:[], notesBlocked:false,
 };
-function loadUI() { try { const x = JSON.parse(localStorage.getItem(UI_KEY) || '{}'); if (x.view) ui.view = x.view; if (x.calMode) ui.cal.mode = x.calMode; if (x.calOrder) ui.cal.order = x.calOrder; if ([30, 60, 90, 120].includes(x.minGap)) ui.cal.minGap = x.minGap; } catch {} }
-function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view:ui.view, calMode:ui.cal.mode, calOrder:ui.cal.order, minGap:ui.cal.minGap })); } catch {} }
+function loadUI() { try { const x = JSON.parse(localStorage.getItem(UI_KEY) || '{}'); if (x.view) ui.view = x.view; if (x.calMode) ui.cal.mode = x.calMode; if (x.calOrder) ui.cal.order = x.calOrder; if ([30, 60, 90, 120].includes(x.minGap)) ui.cal.minGap = x.minGap; if (Array.isArray(x.calTutors)) ui.calTutors = x.calTutors.filter(v => typeof v === 'string'); } catch {} }
+function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view:ui.view, calMode:ui.cal.mode, calOrder:ui.cal.order, minGap:ui.cal.minGap, calTutors:ui.calTutors || [] })); } catch {} }
 function resetViewState() {
   ui.tutorView = 'all'; ui.filters = { q:'', qual:'all', range:null, attention:false };
   ui.selectMode = false; ui.selected.clear(); ui.openClassId = null;
@@ -1612,8 +1657,25 @@ const classColor = c => { for (const sid of c.studentIds || []) { const col = st
 const colourVars = c => { const col = classColor(c); return `--qc:${col};--qt:${textOn(col)}`; };
 /* ---------- Cancellations (CC): told us before the deadline = not charged, credit kept ---------- */
 const ccOf = (c, sid) => c?.cancellations?.[sid] || null;
-const activeIds = c => c.studentIds.filter(sid => !ccOf(c, sid));
-const isCancelled = c => c.studentIds.length > 0 && c.studentIds.every(sid => ccOf(c, sid));
+const activeIds = c => c.tutorCancel ? [] : c.studentIds.filter(sid => !ccOf(c, sid));
+const isCancelled = c => !!c.tutorCancel || (c.studentIds.length > 0 && c.studentIds.every(sid => ccOf(c, sid)));
+const cancelTag = c => c.tutorCancel ? 'CC (tutor)' : 'CC';
+/* ---------- Rates: tutorRates/{tutorId} = { hourlyRate, instituteCut, byYear:{ y10:{ pay, cut } } }
+   The tutor gets `pay` per hour, the institute adds `cut`, and the student pays pay + cut
+   (unless the student has a special price in Manage → Students). A year without its own numbers uses the tutor's defaults. */
+const yKey = y => `y${y}`;
+function rateFor(tutorId, year) {
+  const r = Repo.rateTable()[tutorId] || {}, y = year != null ? r.byYear?.[yKey(year)] : null;
+  const pay = y?.pay ?? r.hourlyRate ?? null, cut = y?.cut ?? r.instituteCut ?? null;
+  return { pay, cut, price:pay != null && cut != null ? pay + cut : null };
+}
+const classYear = c => c.yearGroup ?? c.studentIds.map(sid => Repo.student(sid)?.yearGroup).find(y => y != null) ?? null;
+function studentPrice(c, sid) {
+  const s = Repo.student(sid);
+  if (s?.hourlyPrice != null) return { price:s.hourlyPrice, special:true };
+  const r = rateFor(c.tutorId, s?.yearGroup ?? c.yearGroup ?? null);
+  return { price:r.price ?? Repo.settings().defaultStudentPrice ?? null, special:false };
+}
 const ccDeadlineIso = date => isoAt(addDays(date, -1), Repo.settings().ccDeadline || '20:00');
 function ccRecord(c, atIso, prev) {
   const deadline = ccDeadlineIso(c.date);
@@ -1670,7 +1732,7 @@ function findConflicts(d, exclude = []) {
     if (c.date !== d.date || exclude.includes(c.id) || isCancelled(c)) continue;
     if (!overlaps(s, e, toMin(c.startTime), toMin(c.endTime))) continue;
     if (c.tutorId === d.tutorId) out.push({ kind:'tutor', cls:c });
-    for (const sid of d.studentIds) if (c.studentIds.includes(sid)) out.push({ kind:'student', sid, cls:c });
+    for (const sid of d.studentIds) if (c.studentIds.includes(sid) && !ccOf(c, sid)) out.push({ kind:'student', sid, cls:c });
     if (d.mode === 'in_person' && c.mode === 'in_person' && sameRoom(d.room, c.room)) out.push({ kind:'room', cls:c });
   }
   return out;
@@ -1678,7 +1740,7 @@ function findConflicts(d, exclude = []) {
 function describeConflict(x) {
   const when = `${hm(x.cls.startTime)}–${hm(x.cls.endTime)}`;
   if (x.kind === 'tutor') return `${classTutor(x.cls)} is teaching “${x.cls.title}” ${when}`;
-  if (x.kind === 'student') return `${studentName(x.cls, x.sid)} is in “${x.cls.title}” ${when}`;
+  if (x.kind === 'student') return `${studentName(x.cls, x.sid)} already has ${x.cls.subject || 'a class'} with ${classTutor(x.cls)} ${when}`;
   return `${x.cls.room} is booked for “${x.cls.title}” ${when}`;
 }
 function freeIntervals(busy, from, to, minLen = 30) {
@@ -1694,7 +1756,7 @@ function suggestStarts(d, exclude, dur) {
   let from = toMin(st.dayStart); const to = toMin(st.dayEnd);
   if (d.date === now.date) from = Math.max(from, Math.ceil(now.min / 30) * 30);
   const busy = Repo.classes().filter(c => c.date === d.date && !exclude.includes(c.id) && !isCancelled(c) && (
-    c.tutorId === d.tutorId || c.studentIds.some(s => d.studentIds.includes(s)) ||
+    c.tutorId === d.tutorId || c.studentIds.some(s => d.studentIds.includes(s) && !ccOf(c, s)) ||
     (d.mode === 'in_person' && c.mode === 'in_person' && sameRoom(d.room, c.room))
   )).map(c => ({ s:toMin(c.startTime), e:toMin(c.endTime) }));
   const out = [];
@@ -1799,7 +1861,7 @@ function renderMain() {
   const main = $('#view');
   const f = captureFocus(main);
   const m = ui.cal.mode;
-  const key = ui.view === 'calendar' ? `${m}|${m === 'week' ? weekStart(ui.cal.date) : m === 'month' ? monthStart(ui.cal.date) + ui.cal.order : ui.cal.date}|${ui.tutorView}` : '';
+  const key = ui.view === 'calendar' ? `${m}|${m === 'week' ? weekStart(ui.cal.date) : m === 'month' ? monthStart(ui.cal.date) + ui.cal.order : ui.cal.date}|${calSel().join(',')}` : '';
   const tg = $('#tg') || $('#mt');
   const keep = tg && ui.tgKey === key ? { t:tg.scrollTop, l:tg.scrollLeft } : null;
   if (CLOUD) Repo.ensureMonths(neededMonths());
@@ -1818,7 +1880,11 @@ function renderMain() {
   } else if ($('#mt')) {
     const mt = $('#mt');
     if (keep) { mt.scrollTop = keep.t; mt.scrollLeft = keep.l; }
-    else { const row = mt.querySelector('.mt-row.today'); mt.scrollTop = row ? Math.max(0, row.offsetTop - 120) : 0; }
+    else {
+      const day = mt.querySelector('.mg-day.today'), first = Number(mt.dataset.first), rs = Number(mt.dataset.rs);
+      mt.scrollLeft = day ? Math.max(0, day.offsetLeft - 64 - 24) : 0;
+      mt.scrollTop = Number.isFinite(first) && first > rs ? Math.max(0, (first - 30 - rs) * MPPM) : 0;
+    }
     ui.tgKey = key;
   } else ui.tgKey = null;
 }
@@ -2051,7 +2117,7 @@ function cardHTML(c) {
   const movable = !sel && can('class.move', c);
   const i = STATUS_IDS.indexOf(c.status), prev = STATUSES[i - 1], next = STATUSES[i + 1];
   const act = activeIds(c), n = act.length, marked = act.filter(id => c.attendance?.[id]?.status).length, ccN = c.studentIds.length - n;
-  const ccBadge = !ccN ? '' : `<span class="badge badge-cc">${n ? `${ccN} of ${c.studentIds.length} cancelled` : 'Cancelled (CC)'}</span>`;
+  const ccBadge = c.tutorCancel ? '<span class="badge badge-cc">Tutor cancelled</span>' : !ccN ? '' : `<span class="badge badge-cc">${n ? `${ccN} of ${c.studentIds.length} cancelled` : 'Cancelled (CC)'}</span>`;
   return `<article class="card${c.status === 'completed' ? ' is-done' : ''}${picked ? ' selected' : ''}" style="${colourVars(c)}" data-action="${sel ? 'toggle-select' : 'open-class'}" data-id="${c.id}" tabindex="0" ${movable ? 'draggable="true"' : ''} ${sel ? `aria-pressed="${picked}"` : ''} aria-label="${esc(c.title)}, ${esc(dayLabel(c.date))} ${hm(c.startTime)}. ${sel ? 'Press Enter to select.' : 'Press Enter to open.'}">
     <div class="card-top"><div class="tags">${sel ? `<span class="select-tick">${picked ? icon('check', 'icon icon-xs') : ''}</span>` : ''}${classTags(c)}</div><div class="card-badges">${ccBadge}${badgeHTML(classAlerts(c))}</div></div>
     <div class="card-title">${esc(c.title)}</div>
@@ -2072,7 +2138,22 @@ function cardHTML(c) {
 }
 
 /* ---------- Calendar ---------- */
-const calClasses = () => Repo.classes().filter(c => ui.tutorView === 'all' || c.tutorId === ui.tutorView);
+/* Calendar tutors: [] shows everyone; pick two or more to compare them side by side */
+const calSel = () => (ui.calTutors || []).filter(id => Repo.tutor(id));
+const calShows = id => { const sel = calSel(); return !sel.length || sel.includes(id); };
+const calClasses = () => Repo.classes().filter(c => !can('assign') || calShows(c.tutorId));
+const TUTOR_HUES = ['#2563EB', '#D97706', '#059669', '#DB2777', '#7C3AED', '#0891B2', '#DC2626', '#65A30D', '#9333EA', '#EA580C', '#0D9488', '#4F46E5'];
+function tutorHue(id) { const ids = Repo.tutors().map(t => t.id).sort(); const i = ids.indexOf(id); return TUTOR_HUES[(i < 0 ? 0 : i) % TUTOR_HUES.length]; }
+const shortTutor = name => String(name || '').replace(/^(kru|khru|teacher|t\.|ครู)\s*/i, '') || name;
+function calTutorPicker() {
+  if (!can('assign')) return '';
+  const sel = calSel(), list = activeTutors();
+  return `<div class="tchips" role="group" aria-label="Tutors to show"><span class="tchips-l">Tutors</span>
+    <button type="button" class="tchip all" data-action="cal-tutor" data-id="" aria-pressed="${!sel.length}">All</button>
+    ${list.map(t => `<button type="button" class="tchip" style="--tc:${tutorHue(t.id)}" data-action="cal-tutor" data-id="${esc(t.id)}" aria-pressed="${sel.includes(t.id)}" title="${sel.includes(t.id) ? 'Hide' : 'Show'} ${esc(t.name)}">${esc(shortTutor(t.name))}</button>`).join('')}
+    <span class="hint">${sel.length > 1 ? `Comparing ${sel.length} tutors side by side` : 'Tap two or more tutors to compare them'}</span>
+  </div>`;
+}
 function calendarHTML() {
   const c = ui.cal;
   if (!c.date) c.date = bkkNow().date;
@@ -2081,7 +2162,7 @@ function calendarHTML() {
     : c.mode === 'week' ? `${fmtD(ws, { day:'numeric', month:'short' })} – ${fmtD(we, { day:'numeric', month:'short', year:'numeric' })}`
     : fmtD(c.date, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const admin = can('class.create'), md = c.mode === 'month' ? monthData() : null;
-  const hint = admin ? (c.mode === 'day' ? 'Click a free slot to add a class' : c.mode === 'week' ? 'Click an empty time to add a class' : 'Click a free gap to add a class, or a date to open that day') : 'Showing your classes';
+  const hint = admin ? (c.mode === 'day' ? 'Click a free slot to add a class' : c.mode === 'week' ? 'Click an empty time to add a class' : 'Click a free gap to add a class, a date to open that day. Notes for each day are at the bottom') : 'Showing your classes';
   return `<div class="cal-wrap">
     <div class="cal-toolbar">
       <div class="seg" role="group" aria-label="Calendar view">${['month', 'week', 'day'].map(m => `<button type="button" data-action="cal-mode" data-mode="${m}" aria-pressed="${c.mode === m}">${cap(m)}</button>`).join('')}</div>
@@ -2091,9 +2172,8 @@ function calendarHTML() {
         <button type="button" class="btn btn-sm" data-action="cal-nav" data-dir="1" aria-label="Next ${c.mode}">${icon('right')}</button>
       </div>
       <h2 class="cal-title">${title}</h2>
-      <span class="spacer"></span>
-      ${tutorViewSelect('cal-tutor')}
     </div>
+    ${calTutorPicker()}
     ${md ? monthBarHTML(md) : ''}
     <div class="legend"><span>Colour shows the student</span><span><i style="background:${NO_COLOUR}"></i>No colour set</span>${can('manage') ? '<button type="button" class="btn btn-sm" data-action="manage" data-tab="students">Set student colours</button>' : ''}${c.mode !== 'week' ? `<span><i class="free-swatch"></i>${md ? `Free for ${fmtDur(c.minGap)} or more` : 'Free'}</span>` : ''}<span class="hint">${hint}</span></div>
     ${calJumpHTML(c.mode === 'month' ? [monthStart(c.date), addDays(addMonths(c.date, 1), -1)] : c.mode === 'week' ? [ws, we] : [c.date, c.date])}
@@ -2106,12 +2186,12 @@ function calJumpHTML([from, to]) {
   const prev = all.reduce((m, x) => x.date < from && x.date > m ? x.date : m, '');
   const next = all.reduce((m, x) => x.date > to && (!m || x.date < m) ? x.date : m, '');
   const f = d => fmtD(d, { weekday:'short', day:'numeric', month:'short', year:'numeric' });
-  return `<div class="cal-jump">${icon('cal')}<span>No classes in this ${ui.cal.mode}${ui.tutorView !== 'all' ? ' for this tutor' : ''}.</span>
+  return `<div class="cal-jump">${icon('cal')}<span>No classes in this ${ui.cal.mode}${can('assign') && calSel().length ? (calSel().length > 1 ? ' for these tutors' : ' for this tutor') : ''}.</span>
     ${prev ? `<button type="button" class="btn btn-sm" data-action="cal-jump" data-date="${prev}">${icon('left')}Previous class: ${f(prev)}</button>` : ''}
     ${next ? `<button type="button" class="btn btn-sm" data-action="cal-jump" data-date="${next}">Next class: ${f(next)}${icon('right')}</button>` : ''}
   </div>`;
 }
-/* ---------- Month: one line per day, time runs left to right, free gaps shaded ---------- */
+/* ---------- Month: one column per day (and per tutor), time runs down, free gaps shaded, notes at the bottom ---------- */
 const weekdayIdx = d => (dUTC(d).getUTCDay() + 6) % 7; // Monday = 0
 function monthData() {
   const first = monthStart(ui.cal.date), last = addDays(addMonths(first, 1), -1);
@@ -2119,21 +2199,21 @@ function monthData() {
   const admin = can('class.create'), list = calClasses().filter(c => c.date >= first && c.date <= last);
   let tutors;
   if (admin) {
-    tutors = activeTutors().filter(t => ui.tutorView === 'all' || t.id === ui.tutorView);
+    tutors = activeTutors().filter(t => calShows(t.id));
     for (const c of list) if (!tutors.some(t => t.id === c.tutorId)) tutors.push({ id:c.tutorId, name:classTutor(c) });
   } else tutors = [{ id:myTutorId(), name:myName() }];
   const byKey = groupBy(list, c => `${c.date}|${c.tutorId}`);
   const order = ui.cal.order === 'weekday' ? [...days].sort((a, b) => weekdayIdx(a) - weekdayIdx(b) || a.localeCompare(b)) : days;
-  const rows = [], clashes = [];
+  const cols = [], clashes = [];
   for (const d of order) tutors.forEach((t, i) => {
     const all = (byKey[`${d}|${t.id}`] || []).map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) }));
     const items = layoutLanes(all.filter(x => !isCancelled(x.c))), ghosts = all.filter(x => isCancelled(x.c));
     const clash = items.some(x => x.n > 1);
     if (clash) clashes.push({ date:d, tutor:t });
-    rows.push({ date:d, tutor:t, items, ghosts, clash, first:i === 0 });
+    cols.push({ date:d, tutor:t, items, ghosts, clash, first:i === 0 });
   });
   const [rs, re] = timeRange(list);
-  return { list, tutors, rows, clashes, rs, re, admin, multi:tutors.length > 1 };
+  return { list, tutors, cols, clashes, rs, re, admin, multi:tutors.length > 1 };
 }
 function monthBarHTML(md) {
   const live = md.list.filter(c => !isCancelled(c)), cc = md.list.length - live.length;
@@ -2149,54 +2229,68 @@ function monthBarHTML(md) {
 }
 function monthGridHTML(md) {
   if (!md.tutors.length) return `<div class="cal-empty">No tutors yet. Add tutors under Manage, then their month shows here.</div>`;
-  const { rows, rs, re, admin, multi } = md, span = re - rs;
+  const { cols, rs, re, admin, multi, tutors } = md, k = tutors.length, H = (re - rs) * MPPM;
   const now = bkkNow(), st = Repo.settings(), open = toMin(st.dayStart), close = toMin(st.dayEnd), minGap = ui.cal.minGap;
-  const pct = m => `${((m - rs) / span * 100).toFixed(3)}%`;
-  const wid = (a, b) => `${((b - a) / span * 100).toFixed(3)}%`;
+  const y = m => (m - rs) * MPPM, cw = k === 1 ? 118 : k <= 3 ? 96 : 80;
   const hours = []; for (let m = rs; m < re; m += 30) hours.push(m);
   const closed = [[rs, Math.min(open, re)], [Math.max(close, rs), re]].filter(([a, b]) => b > a)
-    .map(([a, b]) => `<div class="mt-closed" style="left:${pct(a)};width:${wid(a, b)}"></div>`).join('');
-  let html = '', prevWd = -1;
-  rows.forEach((r, i) => {
-    const d = r.date, wd = weekdayIdx(d), isToday = d === now.date, past = d < now.date;
-    if (ui.cal.order === 'weekday' && r.first && wd !== prevWd) {
-      const n = md.list.filter(c => weekdayIdx(c.date) === wd).length;
-      html += `<div class="mt-group"><span>${fmtD(d, { weekday:'long' })}s <span class="muted">${plural(n, 'class', 'classes')}</span></span></div>`;
-      prevWd = wd;
-    }
-    const sep = !r.first || i === 0 || (ui.cal.order === 'weekday' && rows[i - 1] && weekdayIdx(rows[i - 1].date) !== wd) ? ''
-      : ui.cal.order === 'date' && wd === 0 ? ' wk' : multi ? ' dstart' : '';
+    .map(([a, b]) => `<div class="mg-closed" style="top:${y(a)}px;height:${y(b) - y(a)}px"></div>`).join('');
+  const wkStart = (d, i) => i > 0 && (ui.cal.order === 'weekday' ? weekdayIdx(cols[i - 1].date) !== weekdayIdx(d) : weekdayIdx(d) === 0);
+  const dayHeads = cols.filter(c => c.first).map(c => {
+    const d = c.date, i = cols.indexOf(c), isToday = d === now.date, clash = md.clashes.some(x => x.date === d);
+    return `<button type="button" class="mg-day${isToday ? ' today' : ''}${wkStart(d, i) ? ' wk' : ''}${weekdayIdx(d) >= 5 ? ' wkend' : ''}" style="grid-column:span ${k}" data-action="cal-goto-day" data-date="${d}" aria-label="Open ${fmtD(d, { weekday:'long', day:'numeric', month:'long' })}">${fmtD(d, { weekday:'short' })} <strong>${Number(d.slice(8))}</strong>${clash ? '<span class="flag" title="Overlapping classes"></span>' : ''}</button>`;
+  }).join('');
+  const tutorHeads = multi ? cols.map((c, i) => `<div class="mg-tutor${c.first && wkStart(c.date, i) ? ' wk' : c.first ? ' dstart' : ''}${c.date === now.date ? ' today' : ''}" style="--tc:${tutorHue(c.tutor.id)}" title="${esc(c.tutor.name)}">${esc(shortTutor(c.tutor.name))}</div>`).join('') : '';
+  const body = cols.map((c, i) => {
+    const d = c.date, t = c.tutor, isToday = d === now.date, past = d < now.date;
     const from = isToday ? Math.max(open, Math.ceil(now.min / 15) * 15) : open;
-    const gaps = freeIntervals(r.items, from, close, minGap).map(f => {
-      const len = f.e - f.s, style = `left:${pct(f.s)};width:${wid(f.s, f.e)}`;
+    const gaps = freeIntervals(c.items, from, close, minGap).map(f => {
+      const len = f.e - f.s, style = `top:${y(f.s) + 1}px;height:${Math.max(6, y(f.e) - y(f.s) - 2)}px`;
       const range = `${hm(fromMin(f.s))}–${hm(fromMin(f.e))}`, tip = `Free ${range}`;
-      const label = len >= 60 ? `<span class="mt-t">${range}</span><span class="mt-n">Free ${fmtDur(len)}</span>` : '';
+      const label = len * MPPM >= 34 ? `<strong>${range}</strong>${len * MPPM >= 50 ? `<span>Free ${fmtDur(len)}</span>` : ''}` : '';
       if (admin && !past) {
         const end = f.s + Math.min(len, Math.max(60, minGap));
-        return `<button type="button" class="mt-free" style="${style}" data-action="new-class" data-date="${d}" data-start="${fromMin(f.s)}" data-end="${fromMin(end)}" data-tutor="${r.tutor.id}" title="${tip}. Click to add a class." aria-label="Add a class for ${esc(r.tutor.name)} on ${fmtD(d, { weekday:'short', day:'numeric', month:'short' })}, free ${hm(fromMin(f.s))} to ${hm(fromMin(f.e))}">${label}</button>`;
+        return `<button type="button" class="free mg-free" style="${style}" data-action="new-class" data-date="${d}" data-start="${fromMin(f.s)}" data-end="${fromMin(end)}" data-tutor="${t.id}" title="${tip}. Click to add a class." aria-label="Add a class for ${esc(t.name)} on ${fmtD(d, { weekday:'short', day:'numeric', month:'short' })}, free ${hm(fromMin(f.s))} to ${hm(fromMin(f.e))}">${label}</button>`;
       }
-      return `<div class="mt-free${past ? ' past' : ''}" style="${style}" title="${tip}">${label}</div>`;
+      return `<div class="free mg-free${past ? ' past' : ''}" style="${style}" title="${tip}">${label}</div>`;
     }).join('');
-    const evs = r.items.map(x => {
-      const c = x.c, lvl = worstLevel(classAlerts(c)), time = `${hm(c.startTime)}–${hm(c.endTime)}`;
-      const top = x.n > 1 ? `calc(3px + (var(--rh) - 6px) * ${x.lane / x.n})` : '3px';
-      const h = x.n > 1 ? `calc((var(--rh) - 6px) / ${x.n})` : 'calc(var(--rh) - 6px)';
-      return `<button type="button" class="mt-ev${c.status === 'completed' ? ' done' : ''}${x.n > 1 ? ' clash' : ''}" style="${colourVars(c)};left:${pct(x.s)};width:${wid(x.s, x.e)};top:${top};height:${h}" data-action="open-class" data-id="${c.id}" title="${esc(`${time} ${c.title}, ${courseLabel(c)} (${classTutor(c)})${x.n > 1 ? '. Overlaps another class.' : ''}`)}" aria-label="${esc(`${c.title}, ${time}`)}">${lvl ? `<span class="flag ${lvl}"></span>` : ''}${x.n > 1 ? `<span class="mt-n">${hm(c.startTime)} ${esc(c.title)}</span>` : `<span class="mt-t">${time}</span><span class="mt-n">${esc(c.title)}</span>`}</button>`;
+    const evs = c.items.map(x => {
+      const cl = x.c, lvl = worstLevel(classAlerts(cl)), time = `${hm(cl.startTime)}–${hm(cl.endTime)}`, w = 100 / x.n;
+      const names = cl.studentIds.map(sid => studentName(cl, sid)).join(', ');
+      return `<button type="button" class="ev mg-ev${cl.status === 'completed' ? ' done' : ''}${x.n > 1 ? ' clash' : ''}" style="${colourVars(cl)};top:${y(x.s)}px;height:${Math.max(16, y(x.e) - y(x.s) - 1)}px;left:calc(${x.lane * w}% + 2px);width:calc(${w}% - 4px)" data-action="open-class" data-id="${cl.id}" title="${esc(`${time} ${cl.title}, ${courseLabel(cl)} (${classTutor(cl)})${names ? `: ${names}` : ''}${x.n > 1 ? '. Overlaps another class.' : ''}`)}" aria-label="${esc(`${cl.title}, ${time}`)}">${lvl ? `<span class="flag ${lvl}"></span>` : ''}<span class="ev-time">${time}</span><strong>${esc(cl.title)}</strong>${names ? `<span class="ev-sub">${esc(names)}</span>` : ''}</button>`;
     }).join('');
-    const ghosts = r.ghosts.map(x => {
-      const c = x.c, time = `${hm(c.startTime)}–${hm(c.endTime)}`;
-      return `<button type="button" class="mt-ev cc" style="${colourVars(c)};left:${pct(x.s)};width:${wid(x.s, x.e)};top:3px;height:calc(var(--rh) - 6px)" data-action="open-class" data-id="${c.id}" title="${esc(`${time} ${c.title}: cancelled (CC). The time is free again.`)}" aria-label="${esc(`${c.title}, ${time}, cancelled`)}"><span class="mt-t">${time}</span><span class="mt-n">CC ${esc(c.title)}</span></button>`;
+    const ghosts = c.ghosts.map(x => {
+      const cl = x.c, time = `${hm(cl.startTime)}–${hm(cl.endTime)}`;
+      return `<button type="button" class="ev mg-ev mg-ghost cc" style="${colourVars(cl)};top:${y(x.s)}px;height:${Math.max(16, y(x.e) - y(x.s) - 1)}px" data-action="open-class" data-id="${cl.id}" title="${esc(`${time} ${cl.title}: ${cl.tutorCancel ? 'cancelled by the tutor' : 'cancelled (CC)'}. The time is free again.`)}" aria-label="${esc(`${cl.title}, ${time}, cancelled`)}"><span class="ev-time">${cancelTag(cl)}</span></button>`;
     }).join('');
-    const nowLine = isToday && now.min >= rs && now.min <= re ? `<div class="mt-now" style="left:${pct(now.min)}"></div>` : '';
-    html += `<div class="mt-row${sep}${isToday ? ' today' : ''}">
-      <div class="mt-label">${r.first ? `<button type="button" class="mt-day" data-action="cal-goto-day" data-date="${d}" aria-label="Open ${fmtD(d, { weekday:'long', day:'numeric', month:'long' })}">${fmtD(d, { weekday:'short' })} <strong>${Number(d.slice(8))}</strong></button>` : '<span class="mt-day"></span>'}${multi ? `<span class="mt-tutor">${esc(r.tutor.name)}</span>` : ''}${r.clash ? '<span class="flag" title="Overlapping classes"></span>' : ''}</div>
-      <div class="mt-track">${closed}${gaps}${ghosts}${evs}${nowLine}</div>
-    </div>`;
-  });
-  return `<div class="mt" id="mt" style="--hours:${span / 60};--lw:${multi ? 150 : 86}px;--rh:${multi ? 36 : 38}px"><div class="mt-inner">
-    <div class="mt-head"><div class="mt-corner">GMT+7</div><div class="mt-hours">${hours.map(m => `<span class="${m % 60 ? 'half' : ''}" style="left:${pct(m)}">${hm(fromMin(m))}</span>`).join('')}</div></div>
-    ${html}
-  </div></div>`;
+    const nowLine = isToday && now.min >= rs && now.min <= re ? `<div class="nowline" style="top:${y(now.min)}px"></div>` : '';
+    const sep = c.first && wkStart(d, i) ? ' wk' : c.first && i > 0 && multi ? ' dstart' : '';
+    return `<div class="mg-col${sep}${isToday ? ' today' : ''}${past ? ' past' : ''}" style="height:${H}px">${closed}${gaps}${ghosts}${evs}${nowLine}</div>`;
+  }).join('');
+  const notes = cols.map((c, i) => {
+    const d = c.date, t = c.tutor, text = Repo.dayNote(t.id, d), sep = c.first && wkStart(d, i) ? ' wk' : c.first && i > 0 && multi ? ' dstart' : '';
+    const label = `Note for ${t.name}, ${fmtD(d, { weekday:'short', day:'numeric', month:'short' })}`;
+    return `<div class="mg-note${sep}${d === now.date ? ' today' : ''}">${admin && t.id
+      ? `<textarea id="note-${esc(t.id)}-${d}" data-change="day-note" data-tutor="${esc(t.id)}" data-date="${d}" rows="3" maxlength="600" placeholder="Note" aria-label="${esc(label)}">${esc(text)}</textarea>`
+      : text ? `<p title="${esc(label)}">${esc(text)}</p>` : ''}</div>`;
+  }).join('');
+  const firstStart = md.list.length ? Math.min(...md.list.map(c => toMin(c.startTime))) : '';
+  return `${admin && ui.notesBlocked ? `<div class="notice"><span>Day notes can’t be saved until the updated Firestore rules are published (Firebase console → Firestore Database → Rules).</span></div>` : ''}
+  <div class="mg" id="mt" data-rs="${rs}" data-first="${firstStart}" style="--hh:${60 * MPPM}px;--cw:${cw}px;--hd:${multi ? 58 : 36}px">
+    <div class="mg-inner" style="grid-template-columns:60px repeat(${cols.length}, var(--cw))">
+      <div class="mg-corner" style="grid-row:span ${multi ? 2 : 1}">GMT+7</div>${dayHeads}
+      ${tutorHeads}
+      <div class="mg-gutter" style="height:${H}px">${hours.map(m => `<span class="tg-hour${m % 60 ? ' half' : ''}" style="top:${y(m)}px">${hm(fromMin(m))}</span>`).join('')}</div>
+      ${body}
+      <div class="mg-note-l">Notes</div>${notes}
+    </div>
+  </div>`;
+}
+async function onDayNote(el) {
+  const { tutor, date } = el.dataset, text = el.value.trim();
+  if (Repo.dayNote(tutor, date) === text) return;
+  const r = await run(() => Repo.setDayNote(tutor, date, text));
+  if (r.ok) toast(text ? `Note saved for ${tutorName(tutor)}, ${fmtD(date, { weekday:'short', day:'numeric', month:'short' })}.` : 'Note removed.');
 }
 function timeRange(list) {
   const st = Repo.settings();
@@ -2221,7 +2315,7 @@ function eventHTML(x, rs, hideTutor) {
   return `<button type="button" class="ev${c.status === 'completed' ? ' done' : ''}${isCancelled(c) ? ' cc' : ''}" style="${colourVars(c)};top:${top}px;height:${h}px;left:calc(${x.lane * w}% + 3px);width:calc(${w}% - 6px)" data-action="open-class" data-id="${c.id}" title="${esc(`${c.title}: ${courseLabel(c)} with ${classTutor(c)}`)}">
     ${lvl ? `<span class="flag ${lvl}" aria-label="Checklist ${lvl === 'overdue' ? 'overdue' : 'due soon'}"></span>` : ''}
     <span class="ev-time">${hm(c.startTime)}–${hm(c.endTime)}</span>
-    <strong>${isCancelled(c) ? 'CC ' : ''}${esc(c.title)}</strong>
+    <strong>${isCancelled(c) ? cancelTag(c) + ' ' : ''}${esc(c.title)}</strong>
     <span class="ev-sub">${esc(courseLabel(c))}${hideTutor ? '' : ', ' + esc(classTutor(c))}, ${esc(where)}</span>
   </button>`;
 }
@@ -2233,7 +2327,7 @@ function weekHTML() {
   const cols = days.map(d => {
     const evs = layoutLanes(list.filter(c => c.date === d).map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) })));
     return `<div class="tg-col${d === now.date ? ' today' : ''}${admin ? ' can-add' : ''}" ${admin ? `data-action="cal-slot" data-date="${d}" data-rs="${rs}"` : ''} style="height:${(re - rs) * PPM}px">
-      ${evs.map(x => eventHTML(x, rs, !can('assign') || ui.tutorView !== 'all')).join('')}
+      ${evs.map(x => eventHTML(x, rs, !can('assign') || calSel().length === 1)).join('')}
       ${d === now.date && now.min >= rs && now.min <= re ? `<div class="nowline" style="top:${(now.min - rs) * PPM}px"></div>` : ''}
     </div>`;
   }).join('');
@@ -2244,7 +2338,7 @@ function dayHTML() {
   const dayList = calClasses().filter(c => c.date === d);
   let tutors;
   if (admin) {
-    tutors = activeTutors().filter(t => ui.tutorView === 'all' || t.id === ui.tutorView);
+    tutors = activeTutors().filter(t => calShows(t.id));
     for (const c of dayList) if (!tutors.some(t => t.id === c.tutorId)) tutors.push({ id:c.tutorId, name:classTutor(c) });
   } else {
     tutors = [{ id:myTutorId(), name:myName() }];
@@ -2261,7 +2355,7 @@ function dayHTML() {
   });
   const heads = per.map(({ t, mine, free }) => {
     const freeMin = free.reduce((a, f) => a + f.e - f.s, 0);
-    return `<div class="tg-head tg-person"><strong>${esc(t.name)}</strong><span>${plural(mine.length, 'class', 'classes')}${past ? '' : `, ${freeMin ? fmtDur(freeMin) + ' free' : 'fully booked'}`}</span></div>`;
+    return `<div class="tg-head tg-person" style="--tc:${tutorHue(t.id)}"><strong>${esc(t.name)}</strong><span>${plural(mine.length, 'class', 'classes')}${past ? '' : `, ${freeMin ? fmtDur(freeMin) + ' free' : 'fully booked'}`}</span></div>`;
   }).join('');
   const cols = per.map(({ t, mine, free }) => {
     const evs = layoutLanes(mine.map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) })));
@@ -2288,56 +2382,72 @@ const hoursOr = m => m ? hoursLabel(m) : '—';
 const billMonth = () => ui.billMonth || bkkNow().date.slice(0, 7);
 /* One line per student per class. Charged = taught (marked Completed) or cancelled late. */
 function monthBill(month) {
-  const st = Repo.settings(), by = {};
+  const by = {};
   for (const c of Repo.classes().filter(x => x.date.slice(0, 7) === month).sort(byStart)) for (const sid of c.studentIds) {
-    const s = Repo.student(sid), r = ccOf(c, sid), mins = classMinutes(c);
-    const kind = r ? (r.charge ? 'late' : 'credit') : c.status === 'completed' ? 'taught' : 'open';
-    const price = s?.hourlyPrice ?? st.defaultStudentPrice ?? null, charged = kind === 'taught' || kind === 'late';
-    (by[sid] ||= { sid, name:studentName(c, sid), year:s?.yearGroup ?? null, color:s?.color || null, price, lines:[] })
-      .lines.push({ c, r, mins, kind, charged, amount:charged && price != null ? mins / 60 * price : null });
+    const s = Repo.student(sid), r = ccOf(c, sid), mins = classMinutes(c), subject = c.subject || 'Other';
+    const kind = c.tutorCancel ? 'credit' : r ? (r.charge ? 'late' : 'credit') : c.status === 'completed' ? 'taught' : 'open';
+    const { price, special } = studentPrice(c, sid), charged = kind === 'taught' || kind === 'late', key = billKey(sid, subject);
+    (by[key] ||= { key, ref:billRef(sid, subject), sid, subject, name:studentName(c, sid), year:s?.yearGroup ?? null, color:s?.color || null, lines:[] })
+      .lines.push({ c, r, mins, kind, byTutor:!!c.tutorCancel, charged, price, special, amount:charged && price != null ? mins / 60 * price : null });
   }
   return Object.values(by).map(x => {
     const sum = k => x.lines.filter(l => l.kind === k).reduce((a, l) => a + l.mins, 0);
-    const chargedMin = sum('taught') + sum('late');
-    return { ...x, taught:sum('taught'), late:sum('late'), credit:sum('credit'), open:sum('open'), chargedMin, amount:x.price != null ? chargedMin / 60 * x.price : null };
-  }).sort((a, b) => a.name.localeCompare(b.name));
+    const chargedMin = sum('taught') + sum('late'), price = commonPrice(x.lines);
+    const tutors = [...new Set(x.lines.map(l => classTutor(l.c)))];
+    return { ...x, tutors, price, taught:sum('taught'), late:sum('late'), credit:sum('credit'), open:sum('open'), chargedMin, amount:price != null ? chargedMin / 60 * price : null };
+  }).sort((a, b) => a.name.localeCompare(b.name) || a.subject.localeCompare(b.subject));
+}
+const billKey = (sid, subject) => `${sid}|${subject}`;
+const billRef = (sid, subject) => `${sid}__${String(subject).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'other'}`;
+/* the price most of the lines have (one subject is normally one tutor and one year) */
+function commonPrice(lines) {
+  const n = {}; for (const l of lines) if (l.price != null) n[l.price] = (n[l.price] || 0) + 1;
+  const best = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
+  return best ? Number(best[0]) : null;
 }
 /* Prepaid hours. Parents pay before the month for its booked hours, less the credit they already have.
-   Studied hours and late cancellations use those hours. Classes cancelled before the deadline leave hours
-   unused, and that credit is taken off the next month. Classes not taught yet are left open until they are. */
+   Studied hours and late cancellations use those hours. Classes cancelled in time (or by the tutor) leave hours
+   unused, and that credit is taken off the next month. Each subject keeps its own credit. */
 const carryCredit = (x, prev) => Math.max(x.taught + x.late + x.credit + x.open, prev) - x.taught - x.late - x.open;
 function creditInto(month) {
   const credit = {};
   for (const m of [...new Set(Repo.classes().map(c => c.date.slice(0, 7)))].filter(m => m < month).sort())
-    for (const x of monthBill(m)) credit[x.sid] = carryCredit(x, credit[x.sid] || 0);
-  return credit;   // minutes by student id
+    for (const x of monthBill(m)) credit[x.key] = { mins:carryCredit(x, credit[x.key]?.mins || 0), x };
+  return credit;   // { 'sid|subject': { mins, x:the last month's line } }
 }
 function studentBillData(month) {
-  const st = Repo.settings(), carried = creditInto(month), rows = monthBill(month);
-  for (const [sid, mins] of Object.entries(carried)) if (mins > 0 && !rows.some(r => r.sid === sid)) {   // credit but no classes this month
-    const s = Repo.student(sid);
-    if (s) rows.push({ sid, name:s.name, year:s.yearGroup ?? null, color:s.color || null, price:s.hourlyPrice ?? st.defaultStudentPrice ?? null, lines:[], taught:0, late:0, credit:0, open:0, chargedMin:0, amount:null });
+  const carried = creditInto(month), rows = monthBill(month);
+  for (const [key, { mins, x }] of Object.entries(carried)) if (mins > 0 && !rows.some(r => r.key === key)) {   // credit but no classes this month
+    const s = Repo.student(x.sid);
+    rows.push({ key, ref:x.ref, sid:x.sid, subject:x.subject, name:s?.name || x.name, year:s?.yearGroup ?? x.year, color:s?.color || x.color, tutors:x.tutors, price:x.price, lines:[], taught:0, late:0, credit:0, open:0, chargedMin:0, amount:null });
   }
   return rows.map(x => {
-    const prevCredit = carried[x.sid] || 0, booked = x.taught + x.late + x.credit + x.open;
+    const prevCredit = carried[x.key]?.mins || 0, booked = x.taught + x.late + x.credit + x.open;
     const applied = Math.min(prevCredit, booked), paidMin = booked - applied, nextCredit = carryCredit(x, prevCredit);
     const baht = m => x.price != null ? m / 60 * x.price : null;
     return { ...x, booked, prevCredit, applied, paidMin, nextCredit, bookedAmount:baht(booked), appliedAmount:baht(applied), paidAmount:baht(paidMin), nextCreditAmount:baht(nextCredit) };
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  }).sort((a, b) => a.name.localeCompare(b.name) || a.subject.localeCompare(b.subject));
 }
-/* Tutor pay: Completed classes. A class every student cancelled is paid only if someone cancelled late and the school pays for that. */
+/* Tutor pay: Completed classes, at the tutor's rate for the class's year group. A class every student cancelled is paid
+   only if someone cancelled late and the school pays for that; a class the tutor cancelled is never paid. */
 function tutorPayData(month) {
-  const rates = Repo.rates(), st = Repo.settings(), inMonth = Repo.classes().filter(c => c.date.slice(0, 7) === month);
+  const st = Repo.settings(), inMonth = Repo.classes().filter(c => c.date.slice(0, 7) === month);
+  const studentLines = monthBill(month).flatMap(x => x.lines);
   return Repo.tutors().filter(t => t.active !== false || inMonth.some(c => c.tutorId === t.id)).sort((a, b) => a.name.localeCompare(b.name)).map(t => {
-    const rate = rates[t.id] ?? null;
     const lines = inMonth.filter(c => c.tutorId === t.id).sort(byStart).map(c => {
-      const kind = isCancelled(c) ? (st.payTutorLateCC && c.studentIds.some(sid => ccOf(c, sid).charge) ? 'latePaid' : 'cancelled') : c.status === 'completed' ? 'taught' : 'open';
-      const mins = classMinutes(c), paid = kind === 'taught' || kind === 'latePaid';
-      return { c, mins, kind, paid, amount:paid && rate != null ? mins / 60 * rate : null };
+      const kind = c.tutorCancel ? 'cancelled' : isCancelled(c) ? (st.payTutorLateCC && c.studentIds.some(sid => ccOf(c, sid).charge) ? 'latePaid' : 'cancelled') : c.status === 'completed' ? 'taught' : 'open';
+      const mins = classMinutes(c), paid = kind === 'taught' || kind === 'latePaid', year = classYear(c), rate = rateFor(t.id, year).pay;
+      return { c, mins, kind, paid, year, rate, amount:paid && rate != null ? mins / 60 * rate : null };
     });
     const count = k => lines.filter(l => l.kind === k).length, mins = f => lines.filter(f).reduce((a, l) => a + l.mins, 0);
-    const paidMin = mins(l => l.paid);
-    return { t, rate, lines, paidMin, paidCount:lines.filter(l => l.paid).length, latePaid:count('latePaid'), cancelled:count('cancelled'), openCount:count('open'), openMin:mins(l => l.kind === 'open'), amount:rate != null ? paidMin / 60 * rate : null };
+    const paidLines = lines.filter(l => l.paid), paidMin = mins(l => l.paid);
+    const priced = paidLines.filter(l => l.amount != null), missingRate = paidLines.length - priced.length;
+    const amount = priced.length ? priced.reduce((a, l) => a + l.amount, 0) : null;
+    const byYear = Object.values(paidLines.reduce((m, l) => { const k = `${l.year ?? '-'}|${l.rate ?? '-'}`; const g = m[k] ||= { year:l.year, rate:l.rate, mins:0, amount:0, n:0 }; g.mins += l.mins; g.n++; g.amount += l.amount || 0; return m; }, {}))
+      .sort((a, b) => (a.year ?? 99) - (b.year ?? 99));
+    const studentsPaid = studentLines.filter(l => l.c.tutorId === t.id && l.amount != null).reduce((a, l) => a + l.amount, 0);
+    return { t, lines, paidMin, paidCount:paidLines.length, latePaid:count('latePaid'), cancelled:count('cancelled'), openCount:count('open'), openMin:mins(l => l.kind === 'open'),
+      amount, missingRate, byYear, studentsPaid, institute:amount != null ? studentsPaid - amount : null };
   });
 }
 function billingHTML() {
@@ -2375,48 +2485,52 @@ function studentBillsHTML(month) {
   const hide = r => q && !r.name.toLowerCase().includes(q) ? 'hidden' : '';
   const tot = k => rows.reduce((a, r) => a + (r[k] || 0), 0), missing = rows.filter(r => r.price == null).length;
   const pm = shortMonth(prevMonth(month)), nm = shortMonth(nextMonth(month));
-  return `<p class="bill-note">Parents pay before the month for its booked hours, less the credit they already have. Studied hours and cancellations on the day use those hours. A class cancelled before ${st.ccDeadline} the day before isn’t charged: its hours become credit, taken off next month. Prices per hour are set in Manage, Students${st.defaultStudentPrice != null ? `, otherwise ${money(st.defaultStudentPrice)}` : ''}.</p>
-    ${missing ? `<div class="notice"><span>${plural(missing, 'student has', 'students have')} no price per hour yet, so receipts show hours only for them.</span><button type="button" class="btn btn-sm" data-action="manage" data-tab="students">Set prices</button></div>` : ''}
+  return `<p class="bill-note">One line, and one receipt, per student per subject. Parents pay before the month for its booked hours, less the credit they already have. Studied hours and cancellations on the day use those hours. A class cancelled before ${st.ccDeadline} the day before, or cancelled by the tutor, isn’t charged: its hours become credit, taken off next month. The price per hour is the tutor’s rate for the student’s year plus the institute’s share (Manage → Tutors and rates), or the student’s special price.</p>
+    ${missing ? `<div class="notice"><span>${plural(missing, 'line has', 'lines have')} no price per hour yet, so the receipt shows hours only.</span><button type="button" class="btn btn-sm" data-action="manage" data-tab="tutors">Set rates</button></div>` : ''}
     <div class="bill-tools"><div class="search">${icon('search')}<input id="bill-q" type="search" value="${esc(ui.billQ)}" placeholder="Find a student" aria-label="Find a student"></div></div>
     <div class="table-card"><table class="bill-table">
-      <thead><tr><th>Student</th><th class="num">Classes</th><th class="num">Booked</th><th class="num">Studied</th><th class="num">Late CC</th><th class="num">CC in time</th><th class="num">Not taught yet</th><th class="num">Credit from ${pm}</th><th class="num">Amount paid</th><th class="num">Credit for ${nm}</th><th>Received</th><th></th></tr></thead>
+      <thead><tr><th>Student</th><th>Subject</th><th class="num">Classes</th><th class="num">Booked</th><th class="num">Studied</th><th class="num">Late CC</th><th class="num">Not charged</th><th class="num">Not taught yet</th><th class="num">Credit from ${pm}</th><th class="num">Price</th><th class="num">Amount paid</th><th class="num">Credit for ${nm}</th><th>Received</th><th></th></tr></thead>
       <tbody>${rows.map(r => `<tr data-name="${esc(r.name.toLowerCase())}" ${hide(r)}>
         <td><strong>${dot(r.color)}${esc(r.name)}</strong>${r.year ? ` <span class="muted">Year ${r.year}</span>` : ''}</td>
+        <td>${esc(r.subject)}<br><span class="muted">${esc(r.tutors.join(', '))}</span></td>
         <td class="num">${r.lines.length}</td><td class="num">${hoursOr(r.booked)}</td><td class="num">${hoursOr(r.taught)}</td><td class="num">${hoursOr(r.late)}</td><td class="num">${hoursOr(r.credit)}</td><td class="num muted">${hoursOr(r.open)}</td>
-        <td class="num">${hoursOr(r.prevCredit)}</td><td class="num">${r.paidAmount != null ? money(r.paidAmount) : '—'}</td><td class="num">${r.nextCredit ? `<span class="credit-in">${hoursLabel(r.nextCredit)}</span>` : '—'}</td>
-        <td>${paidCell(pays, 'student', r.sid, month, { amount:r.paidAmount, minutes:r.paidMin }, `Payment received from ${r.name}'s parents for ${monthName(month)}`)}</td>
-        <td><button type="button" class="btn btn-sm" data-action="doc-open" data-kind="receipt" data-id="${esc(r.sid)}">${icon('file', 'icon icon-xs')}Receipt</button></td>
-      </tr>`).join('') || '<tr><td colspan="12" class="muted">No classes in this month.</td></tr>'}</tbody>
-      <tfoot><tr><td>All students</td><td class="num">${rows.reduce((a, r) => a + r.lines.length, 0)}</td><td class="num">${hoursOr(tot('booked'))}</td><td class="num">${hoursOr(tot('taught'))}</td><td class="num">${hoursOr(tot('late'))}</td><td class="num">${hoursOr(tot('credit'))}</td><td class="num">${hoursOr(tot('open'))}</td><td class="num">${hoursOr(tot('prevCredit'))}</td><td class="num">${money(tot('paidAmount'))}</td><td class="num">${hoursOr(tot('nextCredit'))}</td><td>${rows.filter(r => paymentOf(pays, 'student', r.sid, month)).length} of ${rows.length}</td><td></td></tr></tfoot>
+        <td class="num">${hoursOr(r.prevCredit)}</td><td class="num">${r.price != null ? money(r.price) : '—'}</td><td class="num">${r.paidAmount != null ? money(r.paidAmount) : '—'}</td><td class="num">${r.nextCredit ? `<span class="credit-in">${hoursLabel(r.nextCredit)}</span>` : '—'}</td>
+        <td>${paidCell(pays, 'student', r.ref, month, { amount:r.paidAmount, minutes:r.paidMin }, `Payment received from ${r.name}'s parents for ${r.subject}, ${monthName(month)}`)}</td>
+        <td><button type="button" class="btn btn-sm" data-action="doc-open" data-kind="receipt" data-id="${esc(r.ref)}">${icon('file', 'icon icon-xs')}Receipt</button></td>
+      </tr>`).join('') || '<tr><td colspan="14" class="muted">No classes in this month.</td></tr>'}</tbody>
+      <tfoot><tr><td>All students</td><td></td><td class="num">${rows.reduce((a, r) => a + r.lines.length, 0)}</td><td class="num">${hoursOr(tot('booked'))}</td><td class="num">${hoursOr(tot('taught'))}</td><td class="num">${hoursOr(tot('late'))}</td><td class="num">${hoursOr(tot('credit'))}</td><td class="num">${hoursOr(tot('open'))}</td><td class="num">${hoursOr(tot('prevCredit'))}</td><td></td><td class="num">${money(tot('paidAmount'))}</td><td class="num">${hoursOr(tot('nextCredit'))}</td><td>${rows.filter(r => paymentOf(pays, 'student', r.ref, month)).length} of ${rows.length}</td><td></td></tr></tfoot>
     </table></div>
     <div class="breakdown"><h3>Class lines</h3>
-      ${rows.filter(r => r.lines.length).map(r => `<details data-name="${esc(r.name.toLowerCase())}" ${hide(r)}><summary><span>${dot(r.color)}${esc(r.name)}</span><span class="muted">${plural(r.lines.length, 'class', 'classes')}, ${hoursOr(r.chargedMin)} charged</span></summary>
-        <div class="table-wrap"><table class="bill-table"><thead><tr><th>Date</th><th>Time</th><th>Class</th><th>Tutor</th><th class="num">Hours</th><th>Status</th><th>Told us</th><th class="num">Amount</th></tr></thead><tbody>
-        ${r.lines.map(l => `<tr><td>${fmtD(l.c.date, { weekday:'short', day:'numeric', month:'short' })}</td><td>${hm(l.c.startTime)}–${hm(l.c.endTime)}</td><td><button type="button" class="btn btn-sm btn-ghost" data-action="open-class" data-id="${l.c.id}">${esc(l.c.title)}, ${esc(courseLabel(l.c))}</button></td><td>${esc(classTutor(l.c))}</td><td class="num">${hoursLabel(l.mins)}</td><td><span class="tag ${KIND_TAG[l.kind]}">${BILL_KIND[l.kind]}</span></td><td>${l.r ? fmtWhen(l.r.at) : ''}</td><td class="num">${l.amount != null ? money(l.amount) : '—'}</td></tr>`).join('')}
+      ${rows.filter(r => r.lines.length).map(r => `<details data-name="${esc(r.name.toLowerCase())}" ${hide(r)}><summary><span>${dot(r.color)}${esc(r.name)}, ${esc(r.subject)}</span><span class="muted">${plural(r.lines.length, 'class', 'classes')}, ${hoursOr(r.chargedMin)} charged</span></summary>
+        <div class="table-wrap"><table class="bill-table"><thead><tr><th>Date</th><th>Time</th><th>Class</th><th>Tutor</th><th class="num">Hours</th><th>Status</th><th>Told us</th><th class="num">Price</th><th class="num">Amount</th></tr></thead><tbody>
+        ${r.lines.map(l => `<tr><td>${fmtD(l.c.date, { weekday:'short', day:'numeric', month:'short' })}</td><td>${hm(l.c.startTime)}–${hm(l.c.endTime)}</td><td><button type="button" class="btn btn-sm btn-ghost" data-action="open-class" data-id="${l.c.id}">${esc(l.c.title)}, ${esc(courseLabel(l.c))}</button></td><td>${esc(classTutor(l.c))}</td><td class="num">${hoursLabel(l.mins)}</td><td><span class="tag ${KIND_TAG[l.kind]}">${l.byTutor ? 'Cancelled by tutor (not charged)' : BILL_KIND[l.kind]}</span></td><td>${l.r ? fmtWhen(l.r.at) : ''}</td><td class="num">${l.price != null ? money(l.price) + (l.special ? ' *' : '') : '—'}</td><td class="num">${l.amount != null ? money(l.amount) : '—'}</td></tr>`).join('')}
         </tbody></table></div></details>`).join('') || '<p class="empty-note">No classes in this month.</p>'}
+      <p class="hint">* the student’s special price</p>
     </div>`;
 }
 function tutorPayHTML(month) {
   const st = Repo.settings(), rows = tutorPayData(month), pays = Repo.payments();
-  const total = rows.reduce((a, r) => a + (r.amount || 0), 0), totalMin = rows.reduce((a, r) => a + r.paidMin, 0);
-  return `<p class="bill-note">Tutor pay counts classes marked Completed, at each tutor’s hourly rate. When every student cancels a class, the tutor ${st.payTutorLateCC ? 'is paid only if someone cancelled late' : 'isn’t paid'} (change this in School settings). Tutors can’t see this page or any rates.</p>
+  const sum = k => rows.reduce((a, r) => a + (r[k] || 0), 0), totalMin = sum('paidMin'), missing = rows.filter(r => r.missingRate).length;
+  return `<p class="bill-note">Tutor pay counts classes marked Completed, at the tutor’s rate for the class’s year group (Manage → Tutors and rates). When every student cancels a class, the tutor ${st.payTutorLateCC ? 'is paid only if someone cancelled late' : 'isn’t paid'} (change this in School settings); a class the tutor cancelled isn’t paid. The institute’s share is what students paid for these classes minus the tutor’s pay. Tutors can’t see this page or any rates.</p>
+    ${missing ? `<div class="notice"><span>${plural(missing, 'tutor has', 'tutors have')} classes without a rate for that year group.</span><button type="button" class="btn btn-sm" data-action="manage" data-tab="tutors">Set rates</button></div>` : ''}
     <div class="table-card"><table class="bill-table">
-      <thead><tr><th>Tutor</th><th class="num">Classes paid</th><th class="num">Hours paid</th><th class="num">Hourly rate</th><th class="num">Amount</th><th class="num">Late CC paid</th><th class="num">Cancelled, not paid</th><th class="num">Not completed yet</th><th>Paid</th><th></th></tr></thead>
+      <thead><tr><th>Tutor</th><th class="num">Classes paid</th><th class="num">Hours paid</th><th class="num">Tutor pay</th><th class="num">Students paid</th><th class="num">Institute share</th><th class="num">Late CC paid</th><th class="num">Not paid</th><th class="num">Not completed yet</th><th>Paid</th><th></th></tr></thead>
       <tbody>${rows.map(r => `<tr>
         <td><strong>${esc(r.t.name)}</strong>${r.t.active === false ? ' <span class="tag">Inactive</span>' : ''}</td>
         <td class="num">${r.paidCount}</td><td class="num">${hoursLabel(r.paidMin)}</td>
-        <td class="num">${r.rate != null ? money(r.rate) : `<button type="button" class="btn btn-sm" data-action="manage" data-tab="tutors">Set rate</button>`}</td>
-        <td class="num">${r.amount != null ? money(r.amount) : '—'}</td><td class="num">${r.latePaid || '—'}</td><td class="num">${r.cancelled || '—'}</td>
+        <td class="num">${r.amount != null ? money(r.amount) : `<button type="button" class="btn btn-sm" data-action="manage" data-tab="tutors">Set rates</button>`}${r.missingRate && r.amount != null ? ` <span class="tag tag-warn" title="${plural(r.missingRate, 'class has', 'classes have')} no rate">+${r.missingRate}</span>` : ''}</td>
+        <td class="num">${r.studentsPaid ? money(r.studentsPaid) : '—'}</td><td class="num">${r.institute != null ? money(r.institute) : '—'}</td>
+        <td class="num">${r.latePaid || '—'}</td><td class="num">${r.cancelled || '—'}</td>
         <td class="num muted">${r.openCount ? `${plural(r.openCount, 'class', 'classes')}, ${hoursLabel(r.openMin)}` : '—'}</td>
         <td>${paidCell(pays, 'tutor', r.t.id, month, { amount:r.amount, minutes:r.paidMin }, `${r.t.name} paid for ${monthName(month)}`)}</td>
         <td><button type="button" class="btn btn-sm" data-action="doc-open" data-kind="slip" data-id="${esc(r.t.id)}">${icon('file', 'icon icon-xs')}Pay slip</button></td>
-      </tr>`).join('') || '<tr><td colspan="10" class="muted">No tutors yet.</td></tr>'}</tbody>
-      <tfoot><tr><td>Total</td><td class="num">${rows.reduce((a, r) => a + r.paidCount, 0)}</td><td class="num">${hoursLabel(totalMin)}</td><td></td><td class="num">${money(total)}</td><td class="num">${rows.reduce((a, r) => a + r.latePaid, 0)}</td><td class="num">${rows.reduce((a, r) => a + r.cancelled, 0)}</td><td></td><td>${rows.filter(r => paymentOf(pays, 'tutor', r.t.id, month)).length} of ${rows.length}</td><td></td></tr></tfoot>
+      </tr>`).join('') || '<tr><td colspan="11" class="muted">No tutors yet.</td></tr>'}</tbody>
+      <tfoot><tr><td>Total</td><td class="num">${sum('paidCount')}</td><td class="num">${hoursLabel(totalMin)}</td><td class="num">${money(sum('amount'))}</td><td class="num">${money(sum('studentsPaid'))}</td><td class="num">${money(sum('institute'))}</td><td class="num">${sum('latePaid')}</td><td class="num">${sum('cancelled')}</td><td></td><td>${rows.filter(r => paymentOf(pays, 'tutor', r.t.id, month)).length} of ${rows.length}</td><td></td></tr></tfoot>
     </table></div>
     <div class="breakdown"><h3>Class lines</h3>
       ${rows.filter(r => r.lines.length).map(r => `<details><summary><span>${esc(r.t.name)}</span><span class="muted">${plural(r.lines.length, 'class', 'classes')} this month</span></summary>
-        <div class="table-wrap"><table class="bill-table"><thead><tr><th>Date</th><th>Class</th><th>Time</th><th class="num">Hours</th><th>Status</th><th class="num">Amount</th></tr></thead><tbody>
-        ${r.lines.map(l => `<tr><td>${fmtD(l.c.date, { weekday:'short', day:'numeric', month:'short' })}</td><td><button type="button" class="btn btn-sm btn-ghost" data-action="open-class" data-id="${l.c.id}">${esc(l.c.title)}, ${esc(courseLabel(l.c))}</button></td><td>${hm(l.c.startTime)}–${hm(l.c.endTime)}</td><td class="num">${hoursLabel(l.mins)}</td><td><span class="tag ${KIND_TAG[l.kind]}">${PAY_KIND[l.kind]}</span></td><td class="num">${l.amount != null ? money(l.amount) : '—'}</td></tr>`).join('')}
+        <div class="table-wrap"><table class="bill-table"><thead><tr><th>Date</th><th>Class</th><th>Time</th><th>Year</th><th class="num">Hours</th><th>Status</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>
+        ${r.lines.map(l => `<tr><td>${fmtD(l.c.date, { weekday:'short', day:'numeric', month:'short' })}</td><td><button type="button" class="btn btn-sm btn-ghost" data-action="open-class" data-id="${l.c.id}">${esc(l.c.title)}, ${esc(courseLabel(l.c))}</button></td><td>${hm(l.c.startTime)}–${hm(l.c.endTime)}</td><td>${l.year ? `Year ${l.year}` : '—'}</td><td class="num">${hoursLabel(l.mins)}</td><td><span class="tag ${KIND_TAG[l.kind]}">${l.c.tutorCancel ? 'Cancelled by tutor' : PAY_KIND[l.kind]}</span></td><td class="num">${l.rate != null ? money(l.rate) : '—'}</td><td class="num">${l.amount != null ? money(l.amount) : '—'}</td></tr>`).join('')}
         </tbody></table></div></details>`).join('') || '<p class="empty-note">No classes in this month.</p>'}
     </div>`;
 }
@@ -2429,7 +2543,7 @@ function docHead(title, no) {
     <div class="doc-title"><h1>${title}</h1><dl><dt>No.</dt><dd>${esc(no)}</dd><dt>Date</dt><dd>${fmtD(bkkNow().date, { day:'numeric', month:'short', year:'numeric' })}</dd></dl></div></header>`;
 }
 const docPaid = (p, label) => `<div class="doc-paid${p ? ' on' : ''}"><span class="box" aria-hidden="true">${p ? '✓' : ''}</span><span><strong>${label}</strong>${p ? ` on ${fmtDay(p.at)}${p.amount != null ? `, ${money(p.amount)}` : ''}` : '&nbsp;&nbsp;Date ________________'}</span></div>`;
-const docNo = (prefix, month, ref) => `${prefix}-${month.replace('-', '')}-${ref.replace(/^(tutor|stu)_/, '').toUpperCase()}`;
+const docNo = (prefix, month, ref) => `${prefix}-${month.replace('-', '')}-${ref.replace(/^(tutor|stu)_/, '').replace(/__([a-z0-9])[a-z0-9]*(?:-([a-z0-9]))?.*$/, (m, a, b) => '-' + a + (b || '')).replace(/_/g, '').toUpperCase()}`;
 function paySlipHTML(r, month, every, pays) {
   const p = paymentOf(pays, 'tutor', r.t.id, month), paid = r.lines.filter(l => l.paid);
   const taught = paid.filter(l => l.kind === 'taught'), late = paid.filter(l => l.kind === 'latePaid'), mins = a => a.reduce((x, l) => x + l.mins, 0);
@@ -2438,9 +2552,9 @@ function paySlipHTML(r, month, every, pays) {
   const rows = every
     ? `<thead><tr><th>Date</th><th>Time</th><th>Students</th><th class="num">Hours</th><th class="num">Amount</th></tr></thead><tbody>${paid.map(l => `<tr><td>${fmtD(l.c.date, { weekday:'short', day:'numeric', month:'short' })}</td><td>${hm(l.c.startTime)}–${hm(l.c.endTime)}</td><td>${esc(names(l.c))}${l.kind === 'latePaid' ? ' <span class="st late">late CC, paid</span>' : ''}</td><td class="num">${hoursLabel(l.mins)}</td><td class="num">${l.amount != null ? money(l.amount) : '—'}</td></tr>`).join('')}</tbody>`
     : null;
-  const dayTable = list => `<table class="doc-lines"><thead><tr><th>Date</th><th class="num">Classes</th><th class="num">Hours</th><th class="num">Amount</th></tr></thead><tbody>${list.map(d => `<tr><td>${fmtD(d.date, { weekday:'short', day:'numeric', month:'short' })}</td><td class="num">${d.n}</td><td class="num">${hoursLabel(d.mins)}</td><td class="num">${r.rate != null ? money(d.amount) : '—'}</td></tr>`).join('')}</tbody></table>`;
+  const dayTable = list => `<table class="doc-lines"><thead><tr><th>Date</th><th class="num">Classes</th><th class="num">Hours</th><th class="num">Amount</th></tr></thead><tbody>${list.map(d => `<tr><td>${fmtD(d.date, { weekday:'short', day:'numeric', month:'short' })}</td><td class="num">${d.n}</td><td class="num">${hoursLabel(d.mins)}</td><td class="num">${r.amount != null ? money(d.amount) : '—'}</td></tr>`).join('')}</tbody></table>`;
   const half = Math.ceil(days.length / 2);
-  const left = [r.cancelled && plural(r.cancelled, 'cancelled class', 'cancelled classes'), r.openCount && `${plural(r.openCount, 'class', 'classes')} not marked Completed yet (${hoursLabel(r.openMin)})`].filter(Boolean);
+  const left = [r.cancelled && plural(r.cancelled, 'cancelled class', 'cancelled classes'), r.missingRate && `${plural(r.missingRate, 'class', 'classes')} without a rate for its year group`, r.openCount && `${plural(r.openCount, 'class', 'classes')} not marked Completed yet (${hoursLabel(r.openMin)})`].filter(Boolean);
   return `<article class="a5">
     ${docHead('Pay slip', docNo('PS', month, r.t.id))}
     <section class="doc-parties"><div><span class="doc-label">Pay to</span><strong>${esc(r.t.name)}</strong>${r.t.email ? `<span>${esc(r.t.email)}</span>` : ''}</div>
@@ -2449,7 +2563,7 @@ function paySlipHTML(r, month, every, pays) {
       <tr><td>Classes taught</td><td class="num">${taught.length}</td><td class="num">${hoursLabel(mins(taught))}</td></tr>
       ${late.length ? `<tr><td>Cancelled late by students, paid</td><td class="num">${late.length}</td><td class="num">${hoursLabel(mins(late))}</td></tr>` : ''}
       <tr class="sub"><td>Hours paid</td><td></td><td class="num">${hoursLabel(r.paidMin)}</td></tr>
-      <tr><td>Hourly rate</td><td></td><td class="num">${r.rate != null ? money(r.rate) : 'Not set'}</td></tr>
+      ${r.byYear.map(g => `<tr class="minus"><td>${g.year ? `Year ${g.year}` : 'Year not set'}: ${hoursLabel(g.mins)} × ${g.rate != null ? money(g.rate) : 'no rate'}</td><td></td><td class="num">${g.rate != null ? money(g.amount) : '—'}</td></tr>`).join('')}
       <tr class="total"><td>Total pay</td><td></td><td class="num">${r.amount != null ? money(r.amount) : '—'}</td></tr>
     </table>
     ${!paid.length ? '<p class="doc-note">No classes to pay this month.</p>'
@@ -2461,18 +2575,18 @@ function paySlipHTML(r, month, every, pays) {
   </article>`;
 }
 function receiptHTML(r, month, pays) {
-  const st = Repo.settings(), p = paymentOf(pays, 'student', r.sid, month);
+  const st = Repo.settings(), p = paymentOf(pays, 'student', r.ref, month);
   const pm = monthName(prevMonth(month)), nm = monthName(nextMonth(month)), h = m => m ? hoursLabel(m) : '0 h';
   return `<article class="a5">
-    ${docHead('Receipt', docNo('RC', month, r.sid))}
+    ${docHead('Receipt', docNo('RC', month, r.ref))}
     <section class="doc-parties"><div><span class="doc-label">Received from</span><strong>Parent of ${esc(r.name)}</strong>${r.year ? `<span>Student, Year ${r.year}</span>` : '<span>Student</span>'}</div>
-      <div><span class="doc-label">Tuition for</span><strong>${monthName(month)}</strong><span>${plural(r.lines.length, 'class', 'classes')} booked</span></div></section>
+      <div><span class="doc-label">Tuition for</span><strong>${esc(r.subject)}, ${monthName(month)}</strong><span>${r.tutors.length ? `With ${esc(r.tutors.join(', '))}, ` : ''}${plural(r.lines.length, 'class', 'classes')} booked</span></div></section>
     <div class="${r.price != null ? 'doc-cols' : ''}"><div><h2 class="doc-h">Hours</h2>
     <table class="doc-sum">
       <tr><td>Hours booked</td><td class="num">${h(r.booked)}</td></tr>
       <tr><td>Hours studied</td><td class="num">${h(r.taught)}</td></tr>
       ${r.late ? `<tr><td>Cancelled on the day (charged)</td><td class="num">${h(r.late)}</td></tr>` : ''}
-      ${r.credit ? `<tr><td>Cancelled in time (kept as credit)</td><td class="num">${h(r.credit)}</td></tr>` : ''}
+      ${r.credit ? `<tr><td>Cancelled in time or by the tutor (credit)</td><td class="num">${h(r.credit)}</td></tr>` : ''}
       ${r.open ? `<tr><td>Not taught yet</td><td class="num">${h(r.open)}</td></tr>` : ''}
       <tr class="sub"><td>Credit from ${pm}</td><td class="num">${h(r.prevCredit)}</td></tr>
       <tr class="total credit"><td>Credit for ${nm}</td><td class="num">${h(r.nextCredit)}</td></tr>
@@ -2486,7 +2600,7 @@ function receiptHTML(r, month, pays) {
     </table></div>` : ''}</div>
     ${r.lines.length ? `<h2 class="doc-h">Classes</h2>
     <table class="doc-lines"><thead><tr><th>Date</th><th>Time</th><th>Class</th><th class="num">Hours</th><th>Status</th></tr></thead><tbody>
-      ${r.lines.map(l => `<tr><td>${fmtD(l.c.date, { weekday:'short', day:'numeric', month:'short' })}</td><td>${hm(l.c.startTime)}–${hm(l.c.endTime)}</td><td>${esc(l.c.subject)}, ${esc(classTutor(l.c))}</td><td class="num">${hoursLabel(l.mins)}</td><td><span class="st ${l.kind}">${RECEIPT_KIND[l.kind]}</span></td></tr>`).join('')}
+      ${r.lines.map(l => `<tr><td>${fmtD(l.c.date, { weekday:'short', day:'numeric', month:'short' })}</td><td>${hm(l.c.startTime)}–${hm(l.c.endTime)}</td><td>${esc(l.c.subject)}, ${esc(classTutor(l.c))}</td><td class="num">${hoursLabel(l.mins)}</td><td><span class="st ${l.kind}">${l.byTutor ? 'Cancelled by tutor, credit' : RECEIPT_KIND[l.kind]}</span></td></tr>`).join('')}
     </tbody></table>` : `<p class="doc-note">No classes booked this month. The credit carries on to ${nm}.</p>`}
     ${r.open ? `<p class="doc-note">The credit for ${nm} is final once the classes not taught yet are done.</p>` : ''}
     ${docPaid(p, 'Payment received')}
@@ -2496,7 +2610,7 @@ function receiptHTML(r, month, pays) {
 function docRows(d) {
   return d.kind === 'slip' ? tutorPayData(d.month).filter(r => r.lines.length) : studentBillData(d.month).filter(r => !ui.billQ.trim() || !d.all || r.name.toLowerCase().includes(ui.billQ.trim().toLowerCase()));
 }
-const docRef = (d, r) => d.kind === 'slip' ? r.t.id : r.sid;
+const docRef = (d, r) => d.kind === 'slip' ? r.t.id : r.ref;
 function openDoc(kind, id, all) {
   const month = billMonth(), d = { kind, month, all:!!all, every:ui.doc?.every || false, id };
   const rows = docRows(d); if (!rows.length) { toast('Nothing to show for this month.', { tone:'warn' }); return; }
@@ -2518,7 +2632,7 @@ function renderDoc() {
   const rows = docRows(d), pays = Repo.payments(), slip = d.kind === 'slip';
   const i = Math.max(0, rows.findIndex(r => docRef(d, r) === d.id)), cur = rows[i];
   const shown = d.all ? rows : cur ? [cur] : [];
-  const who = r => slip ? r.t.name : r.name, noun = slip ? 'Pay slip' : 'Receipt';
+  const who = r => slip ? r.t.name : `${r.name}, ${r.subject}`, noun = slip ? 'Pay slip' : 'Receipt';
   const p = !d.all && cur ? paymentOf(pays, slip ? 'tutor' : 'student', docRef(d, cur), d.month) : null;
   const snap = cur ? (slip ? { amount:cur.amount, minutes:cur.paidMin } : { amount:cur.paidAmount, minutes:cur.paidMin }) : {};
   const title = d.all ? `${slip ? 'All pay slips' : 'All receipts'}, ${monthName(d.month)} (${shown.length})` : `${noun}, ${cur ? esc(who(cur)) : ''}, ${monthName(d.month)}`;
@@ -2544,7 +2658,7 @@ function renderDoc() {
 async function onPayMark(el) {
   const { kind, ref, month } = el.dataset, on = el.checked;
   const snap = { amount:el.dataset.amount === '' ? null : Number(el.dataset.amount), minutes:el.dataset.minutes === '' ? null : Number(el.dataset.minutes) };
-  const name = kind === 'tutor' ? tutorName(ref) : Repo.student(ref)?.name || 'Student';
+  const name = kind === 'tutor' ? tutorName(ref) : Repo.student(ref.split('__')[0])?.name || 'Student';
   const r = await run(() => Repo.setPaid(kind, ref, month, on, snap));
   if (!r.ok) { el.checked = !on; return; }
   toast(kind === 'tutor' ? `${name} ${on ? 'marked as paid' : 'no longer marked as paid'} for ${monthName(month)}.` : `Payment from ${name}’s parents ${on ? 'marked as received' : 'no longer marked as received'} for ${monthName(month)}.`,
@@ -2575,20 +2689,20 @@ function exportBill(kind) {
   if (ui.billTab === 'students') {
     const data = studentBillData(month);
     rows = lines
-      ? [['Month', 'Date', 'Weekday', 'Start', 'End', 'Hours', 'Student ID', 'Student', 'Year', 'Subject', 'Class', 'Tutor', 'Status', 'Told us at', 'Cancellation deadline', 'Charged', 'Hours charged', 'Price per hour (THB)', 'Amount (THB)', 'Class ID'],
-         ...data.flatMap(r => r.lines.map(l => [month, l.c.date, wk(l.c.date), hm(l.c.startTime), hm(l.c.endTime), csvH(l.mins), r.sid, r.name, r.year ?? '', l.c.subject, l.c.title, classTutor(l.c), BILL_KIND[l.kind], csvWhen(l.r?.at), csvWhen(l.r?.deadline), l.charged ? 'Yes' : 'No', csvH(l.charged ? l.mins : 0), r.price ?? '', csvAmt(l.amount), l.c.id]))]
-      : [['Month', 'Student ID', 'Student', 'Year', 'Classes', 'Hours taught', 'Late cancellation hours (charged)', 'Cancelled in time hours (credit kept)', 'Hours charged', 'Price per hour (THB)', 'Amount (THB)', 'Hours not completed yet',
+      ? [['Month', 'Date', 'Weekday', 'Start', 'End', 'Hours', 'Student ID', 'Student', 'Year', 'Subject', 'Class', 'Tutor', 'Status', 'Told us at', 'Cancellation deadline', 'Charged', 'Hours charged', 'Price per hour (THB)', 'Amount (THB)', 'Class ID', 'Special price'],
+         ...data.flatMap(r => r.lines.map(l => [month, l.c.date, wk(l.c.date), hm(l.c.startTime), hm(l.c.endTime), csvH(l.mins), r.sid, r.name, r.year ?? '', l.c.subject, l.c.title, classTutor(l.c), l.byTutor ? 'Cancelled by tutor (not charged)' : BILL_KIND[l.kind], csvWhen(l.r?.at), csvWhen(l.r?.deadline), l.charged ? 'Yes' : 'No', csvH(l.charged ? l.mins : 0), l.price ?? '', csvAmt(l.amount), l.c.id, l.special ? 'Yes' : 'No']))]
+      : [['Month', 'Student ID', 'Student', 'Year', 'Subject', 'Classes', 'Hours taught', 'Late cancellation hours (charged)', 'Cancelled in time hours (credit kept)', 'Hours charged', 'Price per hour (THB)', 'Amount (THB)', 'Hours not completed yet',
           'Hours booked', 'Credit from previous month (hours)', 'Hours paid for', 'Amount paid (THB)', 'Credit for next month (hours)', 'Credit for next month (THB)', 'Payment received', 'Received on', 'Receipt no.'],
-         ...data.map(r => { const p = paymentOf(pays, 'student', r.sid, month); return [month, r.sid, r.name, r.year ?? '', r.lines.length, csvH(r.taught), csvH(r.late), csvH(r.credit), csvH(r.chargedMin), r.price ?? '', csvAmt(r.amount), csvH(r.open),
-           csvH(r.booked), csvH(r.prevCredit), csvH(r.paidMin), csvAmt(r.paidAmount), csvH(r.nextCredit), csvAmt(r.nextCreditAmount), p ? 'Yes' : 'No', p ? bkkParts(p.at).date : '', docNo('RC', month, r.sid)]; })];
+         ...data.map(r => { const p = paymentOf(pays, 'student', r.ref, month); return [month, r.sid, r.name, r.year ?? '', r.subject, r.lines.length, csvH(r.taught), csvH(r.late), csvH(r.credit), csvH(r.chargedMin), r.price ?? '', csvAmt(r.amount), csvH(r.open),
+           csvH(r.booked), csvH(r.prevCredit), csvH(r.paidMin), csvAmt(r.paidAmount), csvH(r.nextCredit), csvAmt(r.nextCreditAmount), p ? 'Yes' : 'No', p ? bkkParts(p.at).date : '', docNo('RC', month, r.ref)]; })];
     name = `student-bills-${month}-${lines ? 'lines' : 'summary'}.csv`;
   } else {
     const data = tutorPayData(month);
     rows = lines
-      ? [['Month', 'Date', 'Weekday', 'Start', 'End', 'Hours', 'Tutor ID', 'Tutor', 'Class', 'Students', 'Subject', 'Status', 'Paid', 'Hours paid', 'Hourly rate (THB)', 'Amount (THB)', 'Class ID'],
-         ...data.flatMap(r => r.lines.map(l => [month, l.c.date, wk(l.c.date), hm(l.c.startTime), hm(l.c.endTime), csvH(l.mins), r.t.id, r.t.name, l.c.title, l.c.studentIds.map(sid => studentName(l.c, sid)).join('; '), l.c.subject, PAY_KIND[l.kind], l.paid ? 'Yes' : 'No', csvH(l.paid ? l.mins : 0), r.rate ?? '', csvAmt(l.amount), l.c.id]))]
-      : [['Month', 'Tutor ID', 'Tutor', 'Classes paid', 'Hours paid', 'Hourly rate (THB)', 'Amount (THB)', 'Late cancellations paid', 'Cancelled, not paid', 'Classes not completed yet', 'Paid', 'Paid on', 'Pay slip no.'],
-         ...data.map(r => { const p = paymentOf(pays, 'tutor', r.t.id, month); return [month, r.t.id, r.t.name, r.paidCount, csvH(r.paidMin), r.rate ?? '', csvAmt(r.amount), r.latePaid, r.cancelled, r.openCount, p ? 'Yes' : 'No', p ? bkkParts(p.at).date : '', docNo('PS', month, r.t.id)]; })];
+      ? [['Month', 'Date', 'Weekday', 'Start', 'End', 'Hours', 'Tutor ID', 'Tutor', 'Class', 'Students', 'Subject', 'Status', 'Paid', 'Hours paid', 'Hourly rate (THB)', 'Amount (THB)', 'Class ID', 'Year'],
+         ...data.flatMap(r => r.lines.map(l => [month, l.c.date, wk(l.c.date), hm(l.c.startTime), hm(l.c.endTime), csvH(l.mins), r.t.id, r.t.name, l.c.title, l.c.studentIds.map(sid => studentName(l.c, sid)).join('; '), l.c.subject, l.c.tutorCancel ? 'Cancelled by tutor (not paid)' : PAY_KIND[l.kind], l.paid ? 'Yes' : 'No', csvH(l.paid ? l.mins : 0), l.rate ?? '', csvAmt(l.amount), l.c.id, l.year ?? '']))]
+      : [['Month', 'Tutor ID', 'Tutor', 'Classes paid', 'Hours paid', 'Amount (THB)', 'Late cancellations paid', 'Cancelled, not paid', 'Classes not completed yet', 'Paid', 'Paid on', 'Pay slip no.', 'Students paid (THB)', 'Institute share (THB)', 'Classes without a rate'],
+         ...data.map(r => { const p = paymentOf(pays, 'tutor', r.t.id, month); return [month, r.t.id, r.t.name, r.paidCount, csvH(r.paidMin), csvAmt(r.amount), r.latePaid, r.cancelled, r.openCount, p ? 'Yes' : 'No', p ? bkkParts(p.at).date : '', docNo('PS', month, r.t.id), csvAmt(r.studentsPaid), csvAmt(r.institute), r.missingRate]; })];
     name = `tutor-pay-${month}-${lines ? 'lines' : 'summary'}.csv`;
   }
   downloadFile(name, csvText(rows), 'text/csv;charset=utf-8');
@@ -2652,7 +2766,8 @@ function drawerHTML(c) {
         </dl>
         <div class="seg" role="group" aria-label="Status">${STATUSES.map(s => `<button type="button" data-action="move" data-id="${c.id}" data-status="${s.id}" aria-pressed="${c.status === s.id}" ${can('class.move', c) ? '' : 'disabled'}>${s.label}</button>`).join('')}</div>
         ${!can('class.edit', c) ? `<p class="hint" style="margin-top:8px">${icon('lock', 'icon icon-xs')} Subject, time, students and links are set by the admin.</p>` : ''}
-        ${isCancelled(c) ? `<div class="alerts"><div class="alert alert-cc">${icon('x')}<div><strong>Every student cancelled this class (CC)</strong><span>No attendance or lesson notes needed. The time shows as free in the calendar.</span></div></div></div>` : ''}
+        ${c.tutorCancel ? `<div class="alerts"><div class="alert alert-cc">${icon('x')}<div><strong>The tutor cancelled this class</strong><span>No student is charged and the tutor isn’t paid. The time shows as free in the calendar.</span></div></div></div>`
+          : isCancelled(c) ? `<div class="alerts"><div class="alert alert-cc">${icon('x')}<div><strong>Every student cancelled this class (CC)</strong><span>No attendance or lesson notes needed. The time shows as free in the calendar.</span></div></div></div>` : ''}
         ${al.length ? `<div class="alerts">${al.map(a => `<div class="alert alert-${a.level}">${icon('alert')}<div><strong>${esc(a.title)}</strong><span>${a.items.map(i => esc(i.label)).join(', ')}</span></div></div>`).join('')}</div>` : ''}
       </header>
       <section class="section" aria-labelledby="h-check"><h3 id="h-check">Checklists</h3><div class="checklists">${checklistHTML(c, 'admin')}${checklistHTML(c, 'tutor')}</div></section>
@@ -2702,24 +2817,28 @@ function attendanceHTML(c) {
   const counts = Object.fromEntries(ATT.map(a => [a.id, 0])); let marked = 0;
   act.forEach(id => { const s = c.attendance?.[id]?.status; if (s) { counts[s]++; marked++; } });
   if (!ids.length) return `<h3 id="h-att">Attendance</h3><p class="empty-note">No students on this class yet.${can('class.edit', c) ? ' Use Edit to add them.' : ''}</p>`;
-  return `<h3 id="h-att">Attendance <span class="muted">${marked} of ${act.length} marked${act.length < ids.length ? `, ${ids.length - act.length} cancelled` : ''}</span></h3>
+  return `<h3 id="h-att">Attendance <span class="muted">${c.tutorCancel ? 'the tutor cancelled' : `${marked} of ${act.length} marked${act.length < ids.length ? `, ${ids.length - act.length} cancelled` : ''}`}</span></h3>
     <div class="att-summary">${ATT.map(a => `<span class="att-pill">${a.label} ${counts[a.id]}</span>`).join('')}
       ${editable && marked < act.length ? `<button type="button" class="btn btn-sm" data-action="att-rest" data-id="${c.id}">${icon('check')}Mark the rest present</button>` : ''}
     </div>
     <ul class="att-list">${ids.map(sid => {
       const cur = c.attendance?.[sid]?.status, name = studentName(c, sid);
-      if (ccOf(c, sid)) return `<li class="att-row"><span class="att-name">${dot(studentColor(c, sid))}${esc(name)}</span><span class="badge badge-cc">Cancelled (CC)</span></li>`;
+      if (c.tutorCancel || ccOf(c, sid)) return `<li class="att-row"><span class="att-name">${dot(studentColor(c, sid))}${esc(name)}</span><span class="badge badge-cc">${c.tutorCancel ? 'Tutor cancelled' : 'Cancelled (CC)'}</span></li>`;
       return `<li class="att-row"><span class="att-name">${dot(studentColor(c, sid))}${esc(name)}</span>
         <span class="att-opts" role="group" aria-label="Attendance for ${esc(name)}">${ATT.map(a => `<button type="button" data-action="att" data-id="${c.id}" data-student="${sid}" data-status="${a.id}" aria-pressed="${cur === a.id}" ${editable ? '' : 'disabled'}>${a.label}</button>`).join('')}</span>
       </li>`;
     }).join('')}</ul>`;
 }
 function ccSectionHTML(c) {
-  if (!can('cc', c) || !c.studentIds.length) return '';
+  if (!can('cc', c)) return '';
+  const tc = c.tutorCancel;
   return `<section class="section" aria-labelledby="h-cc">
     <h3 id="h-cc">Cancellations (CC) <span class="muted">Deadline ${fmtWhen(ccDeadlineIso(c.date))}</span></h3>
-    <p class="hint" style="margin-bottom:6px">Told us before the deadline: not charged, and the paid credit carries over to the next class. After the deadline or on the day: charged.</p>
-    <ul class="cc-list">${c.studentIds.map(sid => {
+    <p class="hint" style="margin-bottom:6px">Student told us before the deadline: not charged, and the paid credit carries over to the next class. After the deadline or on the day: charged. If the tutor cancels, no student is charged and the tutor isn’t paid.</p>
+    <ul class="cc-list"><li class="cc-row cc-tutor${tc ? ' on' : ''}">
+        <label class="check-inline" for="cc-tutor"><input type="checkbox" id="cc-tutor" data-change="tutor-cancel" data-id="${c.id}" ${tc ? 'checked' : ''}>${icon('user', 'icon icon-xs')}${esc(classTutor(c))} (tutor) cancelled</label>
+        ${tc ? `<span class="muted">Marked ${fmtWhen(tc.at)}${tc.byName ? ` by ${esc(tc.byName)}` : ''}</span><span class="tag tag-ok">Students not charged, tutor not paid</span>` : ''}
+      </li>${tc ? '' : c.studentIds.map(sid => {
       const r = ccOf(c, sid), name = studentName(c, sid), p = r ? bkkParts(r.at) : null;
       return `<li class="cc-row">
         <label class="check-inline" for="cc-${sid}"><input type="checkbox" id="cc-${sid}" data-change="cc-toggle" data-id="${c.id}" data-student="${sid}" ${r ? 'checked' : ''}>${dot(studentColor(c, sid))}${esc(name)} cancelled</label>
@@ -2730,6 +2849,13 @@ function ccSectionHTML(c) {
       </li>`;
     }).join('')}</ul>
   </section>`;
+}
+async function onTutorCancel(el) {
+  const c = Repo.getClass(el.dataset.id); if (!c) return;
+  const rec = el.checked ? { at:new Date().toISOString(), by:ui.auth.uid, byName:myName() || '' } : null;
+  const r = await run(() => Repo.setTutorCancel(c.id, rec));
+  if (!r.ok) { el.checked = !el.checked; return; }
+  toast(rec ? `Marked as cancelled by ${classTutor(c)}. No student is charged and the tutor isn’t paid for this class.` : 'The class is back on.');
 }
 async function onCcToggle(el) {
   const c = Repo.getClass(el.dataset.id), sid = el.dataset.student; if (!c) return;
@@ -2892,7 +3018,7 @@ function defaultDraft(p) {
     date:p.date || (ui.view === 'calendar' && ui.cal.date >= now.date ? ui.cal.date : now.date),
     startTime:start, endTime:p.endTime || fromMin(Math.min(toMin(start) + 90, LAST_SLOT)),
     mode:'online', meetingLink:'', room:'',
-    tutorId:p.tutorId || (ui.tutorView !== 'all' ? ui.tutorView : ''),
+    tutorId:p.tutorId || (ui.view === 'calendar' ? (calSel().length === 1 ? calSel()[0] : '') : ui.tutorView !== 'all' ? ui.tutorView : ''),
     studentIds:[],
   };
 }
@@ -2918,7 +3044,8 @@ function classFormHTML() {
       <div class="cf-main">
         <div class="field"><label for="cf-title-in">Lesson title</label><input id="cf-title-in" name="title" type="text" value="${esc(d.title)}" placeholder="e.g. Quadratic equations"></div>
         <div class="grid g2">
-          <div class="field"><label for="cf-subject">Subject</label><input id="cf-subject" name="subject" type="text" list="dl-subjects" value="${esc(d.subject)}" placeholder="e.g. Mathematics"></div>
+          <div class="field"><label for="cf-subject">Subject</label><select id="cf-subject" name="subject">${opt('', 'Choose a subject', !d.subject)}${subjectChoices(d.subject).map(x => opt(x, x, x === d.subject)).join('')}${opt('__other', 'Other subject…', false)}</select>
+            <input id="cf-subject-other" name="subjectOther" type="text" placeholder="Type the subject" aria-label="Other subject" hidden style="margin-top:6px"></div>
           <div class="field"><label for="cf-board">Exam board</label><select id="cf-board" name="examBoard">${opt('', 'Not set', !d.examBoard)}${BOARDS.map(b => opt(b, b, b === d.examBoard)).join('')}${d.examBoard && !BOARDS.includes(d.examBoard) ? opt(d.examBoard, d.examBoard, true) : ''}</select></div>
         </div>
         <div class="grid g2">
@@ -2944,7 +3071,6 @@ function classFormHTML() {
         <div class="field" id="cf-link-field" ${d.mode === 'online' ? '' : 'hidden'}><label for="cf-link">Class link</label><input id="cf-link" name="meetingLink" type="url" value="${esc(d.meetingLink)}" placeholder="https://meet.google.com/…"></div>
         <div class="field" id="cf-room-field" ${d.mode === 'in_person' ? '' : 'hidden'}><label for="cf-room">Classroom</label><input id="cf-room" name="room" type="text" list="dl-rooms" value="${esc(d.room)}" placeholder="e.g. Room 1"></div>
         ${fs.isEdit ? '' : `<div class="field"><label for="cf-repeat">Repeat</label><select id="cf-repeat" name="repeat">${[1, 2, 3, 4, 6, 8, 10, 12].map(n => opt(n, n === 1 ? 'Does not repeat' : `Every week, ${n} classes in total`, n === fs.repeat)).join('')}</select></div>`}
-        <datalist id="dl-subjects">${SUBJECTS.map(s => `<option value="${esc(s)}">`).join('')}</datalist>
         <datalist id="dl-rooms">${(st.rooms || []).map(r => `<option value="${esc(r)}">`).join('')}</datalist>
       </div>
       <aside class="cf-side" id="cf-avail" aria-live="polite"></aside>
@@ -2953,9 +3079,14 @@ function classFormHTML() {
     <div class="modal-foot"><button type="button" class="btn" data-action="modal-close">Cancel</button><button type="submit" class="btn btn-primary">${fs.isEdit ? 'Save changes' : 'Create class'}</button></div>
   </form></div></div>`;
 }
+/* the standard subjects first, then any other subject already used on a class */
+function subjectChoices(cur) {
+  const extra = [...new Set([...Repo.classes().map(c => c.subject), cur].filter(x => x && !SUBJECTS.includes(x)))].sort((a, b) => a.localeCompare(b));
+  return [...SUBJECTS, ...extra];
+}
 function readForm() {
   const f = $('#class-form'), d = fs.draft, v = n => f.elements[n]?.value ?? '';
-  d.title = v('title'); d.subject = v('subject'); d.examBoard = v('examBoard');
+  d.title = v('title'); d.subject = v('subject') === '__other' ? v('subjectOther').trim() : v('subject'); d.examBoard = v('examBoard');
   d.qualification = v('qualification'); d.yearGroup = v('yearGroup') ? Number(v('yearGroup')) : null;
   d.date = v('date'); d.startTime = v('startTime'); d.endTime = v('endTime');
   d.tutorId = v('tutorId'); d.mode = f.elements.mode.value || 'online';
@@ -2973,6 +3104,8 @@ function onFormInput(e) {
   }
   $('#cf-link-field').hidden = fs.draft.mode !== 'online';
   $('#cf-room-field').hidden = fs.draft.mode !== 'in_person';
+  const other = $('#cf-subject-other'), isOther = t.form?.elements.subject?.value === '__other';
+  if (other && other.hidden === isOther) { other.hidden = !isOther; if (isOther) other.focus(); }
   if (t.name === 'yearGroup') renderPickerResults();
   renderAvail();
 }
@@ -2994,7 +3127,10 @@ function renderPickerResults() {
   const box = $('#cf-results'), input = $('#cf-stu-q'); if (!box) return;
   if (!fs.pickerOpen) { box.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
   const m = pickerMatches(), create = canCreateFromQuery();
-  box.innerHTML = m.map((s, i) => `<button type="button" role="option" aria-selected="${i === fs.activeIdx}" class="${i === fs.activeIdx ? 'active' : ''}" data-action="pick-student" data-sid="${s.id}"><span>${dot(s.color)}${esc(s.name)}</span><span class="muted">${s.yearGroup ? `Year ${s.yearGroup}` : 'Year not set'}</span></button>`).join('')
+  const busy = sid => { const d = fs.draft; if (!d.date || !d.startTime || !d.endTime) return null; const x = findConflicts({ ...d, studentIds:[sid] }, fs.isEdit ? [fs.id] : []).find(k => k.kind === 'student'); return x ? `Busy ${hm(x.cls.startTime)}–${hm(x.cls.endTime)}: ${x.cls.subject || 'class'} with ${classTutor(x.cls)}` : null; };
+  const dupQ = fs.q.trim() && Repo.students().find(s => s.name.toLowerCase() === fs.q.trim().toLowerCase());
+  box.innerHTML = m.map((s, i) => { const b = busy(s.id); return `<button type="button" role="option" aria-selected="${i === fs.activeIdx}" class="${i === fs.activeIdx ? 'active' : ''}" data-action="pick-student" data-sid="${s.id}"><span>${dot(s.color)}${esc(s.name)}</span><span class="${b ? 'busy-note' : 'muted'}">${b ? esc(b) : s.yearGroup ? `Year ${s.yearGroup}` : 'Year not set'}</span></button>`; }).join('')
+    + (dupQ ? `<div class="dup-note">${icon('alert', 'icon icon-xs')}There’s already a student called “${esc(dupQ.name)}”. If this is someone else, add a word after the name (for example “${esc(dupQ.name)} B”) to add them as a new student.</div>` : '')
     + (create ? `<button type="button" role="option" class="create${fs.activeIdx === m.length ? ' active' : ''}" data-action="create-student">${icon('plus')}Add “${esc(fs.q.trim())}” as a new ${fs.draft.yearGroup ? `Year ${fs.draft.yearGroup} ` : ''}student</button>` : '')
     + (!m.length && !create ? `<div class="muted" style="padding:8px 10px;font-size:14px">${fs.q.trim() ? 'Already added.' : 'Everyone is already on this class.'}</div>` : '');
   box.hidden = false; input.setAttribute('aria-expanded', 'true');
@@ -3114,8 +3250,35 @@ function renderManage() {
     <div class="modal-body">${tab === 'tutors' ? tutorsTabHTML() : tab === 'accounts' ? accountsTabHTML() : tab === 'students' ? studentsTabHTML() : settingsTabHTML()}</div>
   </div></div>`;
 }
+/* What a tutor gets per hour, what the institute adds, and what the student pays, for one year group (or the default) */
+function rateSummary(tid) {
+  const r = Repo.rateTable()[tid] || {}, years = Object.keys(r.byYear || {}).length, d = rateFor(tid, null);
+  const main = d.pay != null || d.cut != null ? `${d.pay != null ? money(d.pay) : '—'} + ${d.cut != null ? money(d.cut) : '—'}${d.price != null ? ` = <strong>${money(d.price)}</strong>` : ''}` : '<span class="muted">Not set</span>';
+  return `${main}${years ? ` <span class="tag">${plural(years, 'year group', 'year groups')} set</span>` : ''}`;
+}
+function ratesGridHTML(t) {
+  const r = Repo.rateTable()[t.id] || {}, base = { pay:r.hourlyRate ?? null, cut:r.instituteCut ?? null };
+  const cell = (key, val, ph, label) => `<span class="rate-in">฿<input type="number" inputmode="numeric" min="0" step="50" value="${val ?? ''}" placeholder="${ph ?? ''}" data-change="rate-field" data-id="${esc(t.id)}" data-key="${key}" aria-label="${esc(label)}"></span>`;
+  const sum = (pay, cut) => pay != null && cut != null ? money(pay + cut) : '—';
+  const row = (y) => {
+    const yr = y == null ? null : r.byYear?.[yKey(y)] || {}, f = rateFor(t.id, y);
+    const name = y == null ? 'Any year (default)' : `Year ${y}`, own = y != null && (yr.pay != null || yr.cut != null);
+    return `<tr class="${y == null ? 'rate-default' : own ? 'rate-own' : ''}" data-year="${y ?? ''}">
+      <th scope="row">${name}</th>
+      <td>${y == null ? cell('hourlyRate', base.pay, 'Not set', `${t.name}: tutor pay per hour, any year`) : cell(`byYear.${yKey(y)}.pay`, yr.pay, base.pay ?? 'Not set', `${t.name}: tutor pay per hour, Year ${y}`)}</td>
+      <td>${y == null ? cell('instituteCut', base.cut, 'Not set', `${t.name}: institute share per hour, any year`) : cell(`byYear.${yKey(y)}.cut`, yr.cut, base.cut ?? 'Not set', `${t.name}: institute share per hour, Year ${y}`)}</td>
+      <td class="num rate-price" id="rp-${esc(t.id)}-${y ?? 'd'}">${sum(f.pay, f.cut)}</td>
+    </tr>`;
+  };
+  return `<div class="rates-grid">
+    <table class="tbl rate-tbl"><thead><tr><th>Year group</th><th>Tutor pay per hour <span class="muted">(actual teaching fee)</span></th><th>Institute share per hour</th><th class="num">Student pays per hour</th></tr></thead>
+    <tbody>${row(null)}${YEARS.map(row).join('')}</tbody></table>
+    <p class="hint">Leave a year empty to use the default. Student pays = tutor pay + institute share. Tutor pay slips use the tutor pay for each class’s year group; receipts use what the student pays, unless the student has a special price (Students tab).</p>
+  </div>`;
+}
 function tutorsTabHTML() {
-  const rates = Repo.rates(), users = Repo.users(), today = bkkNow().date;
+  const users = Repo.users(), today = bkkNow().date;
+  ui.rateOpen ||= new Set();
   const pending = users.filter(u => u.role === 'pending').length;
   const list = Repo.tutors().sort((a, b) => (b.active !== false) - (a.active !== false) || a.name.localeCompare(b.name));
   const upcoming = id => Repo.classes().filter(c => c.tutorId === id && c.date >= today).length;
@@ -3128,19 +3291,20 @@ function tutorsTabHTML() {
   return `${pending ? `<div class="notice"><span>${plural(pending, 'account is', 'accounts are')} waiting to be linked to a tutor.</span><button type="button" class="btn btn-sm" data-action="manage-tab" data-tab="accounts">Review accounts</button></div>` : ''}
     <form class="add-row tutors" data-form="add-tutor">
       <input name="name" type="text" placeholder="Tutor name, e.g. Kru Ploy" aria-label="Tutor name">
-      <span class="rate-in">฿<input name="rate" type="number" min="0" step="50" placeholder="Rate per hour" aria-label="Hourly rate in baht" style="width:100%"></span>
+      <span class="rate-in">฿<input name="rate" type="number" min="0" step="50" placeholder="Tutor pay / h" aria-label="Tutor pay per hour in baht" style="width:100%"></span>
+      <span class="rate-in">฿<input name="cut" type="number" min="0" step="50" placeholder="Institute share / h" aria-label="Institute share per hour in baht" style="width:100%"></span>
       <input name="email" type="email" placeholder="Google sign-in email (optional)" aria-label="Google sign-in email">
       <button type="submit" class="btn btn-primary">${icon('plus')}Add tutor</button>
     </form>
-    <div class="table-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Hourly rate</th><th>Google sign-in email</th><th>Access</th><th>Upcoming</th><th>Active</th></tr></thead><tbody>
-    ${list.map(t => `<tr class="${t.active === false ? 'archived' : ''}">
+    <div class="table-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Rates per hour <span class="muted">tutor + institute = student</span></th><th>Google sign-in email</th><th>Access</th><th>Upcoming</th><th>Active</th></tr></thead><tbody>
+    ${list.map(t => { const open = ui.rateOpen.has(t.id); return `<tr class="${t.active === false ? 'archived' : ''}">
       <td><input type="text" value="${esc(t.name)}" data-change="entity" data-entity="tutor" data-id="${t.id}" data-field="name" aria-label="Tutor name"></td>
-      <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${rates[t.id] ?? ''}" placeholder="Not set" data-change="rate" data-id="${t.id}" aria-label="Hourly rate for ${esc(t.name)}"></span></td>
+      <td><div class="rate-sum" id="rs-${esc(t.id)}">${rateSummary(t.id)}</div><button type="button" class="btn btn-sm" data-action="rate-open" data-id="${esc(t.id)}" aria-expanded="${open}">${open ? 'Close' : 'Rates by year'}</button></td>
       <td><input type="email" value="${esc(t.email || '')}" placeholder="name@gmail.com" data-change="tutor-email" data-id="${t.id}" aria-label="Google sign-in email for ${esc(t.name)}"></td>
       <td>${access(t)}</td>
       <td>${plural(upcoming(t.id), 'class', 'classes')}</td>
       <td><input type="checkbox" ${t.active !== false ? 'checked' : ''} data-change="entity" data-entity="tutor" data-id="${t.id}" data-field="active" aria-label="${esc(t.name)} is active"></td>
-    </tr>`).join('')}
+    </tr>${open ? `<tr class="rate-row"><td colspan="6">${ratesGridHTML(t)}</td></tr>` : ''}`; }).join('')}
     </tbody></table></div>
     <p class="hint" style="margin-top:10px">Tutors don’t need an account to be scheduled. Add the Google email a tutor signs in with: the first time they sign in, they see their own classes straight away. If they’ve already signed in, they’re linked as soon as you save the email. Rates are stored separately and only admins can read them.</p>`;
 }
@@ -3199,32 +3363,40 @@ function studentsTabHTML() {
   const today = bkkNow().date;
   const list = Repo.students().sort((a, b) => (b.active !== false) - (a.active !== false) || (a.yearGroup || 99) - (b.yearGroup || 99) || a.name.localeCompare(b.name));
   const upcoming = id => Repo.classes().filter(c => c.date >= today && c.studentIds.includes(id)).length;
-  const missing = list.filter(s => s.active !== false && !s.color).length, defPrice = Repo.settings().defaultStudentPrice;
+  const missing = list.filter(s => s.active !== false && !s.color).length;
   return `<div class="stu-tools">
       <div class="search">${icon('search')}<input id="stu-q" type="search" value="${esc(ui.stuQ)}" placeholder="Find a student" aria-label="Find a student"></div>
       <span class="spacer"></span>
       ${missing ? `<button type="button" class="btn" data-action="auto-colour">Give colours to ${plural(missing, 'student')} without one</button>` : ''}
     </div>
     <form class="add-row" data-form="add-student">
-      <input name="name" type="text" placeholder="Student name" aria-label="Student name">
+      <input id="ns-name" name="name" type="text" placeholder="Student name" aria-label="Student name" aria-describedby="ns-dup">
       <select name="yearGroup" aria-label="Year group"><option value="">Year not set</option>${YEARS.map(y => `<option value="${y}">Year ${y}</option>`).join('')}</select>
       <input name="contact" type="text" placeholder="LINE ID, phone or parent contact" aria-label="Contact">
       <button type="submit" class="btn btn-primary">${icon('plus')}Add student</button>
     </form>
-    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>Year</th><th>Contact</th><th>Price per hour</th><th>Upcoming</th><th>Active</th></tr></thead><tbody>
+    <p class="dup-note" id="ns-dup" role="status" hidden></p>
+    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>Year</th><th>Contact</th><th>Special price per hour</th><th>Upcoming</th><th>Active</th></tr></thead><tbody>
     ${list.map(s => `<tr class="${s.active === false ? 'archived' : ''}" data-name="${esc(s.name.toLowerCase())}" ${matchesStu(s) ? '' : 'hidden'}>
       <td><button type="button" class="swatch-btn${s.color ? '' : ' none'}" style="--sw:${s.color || '#fff'}" data-action="pick-colour" data-id="${s.id}" aria-label="Colour for ${esc(s.name)}: ${s.color || 'none'}. Change"></button></td>
       <td><input type="text" value="${esc(s.name)}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="name" aria-label="Name"></td>
       <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="yearGroup" aria-label="Year group of ${esc(s.name)}"><option value="" ${s.yearGroup ? '' : 'selected'}>Not set</option>${YEARS.map(y => `<option value="${y}" ${y === s.yearGroup ? 'selected' : ''}>Year ${y}</option>`).join('')}</select></td>
       <td><input type="text" value="${esc(s.contact || '')}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="contact" aria-label="Contact for ${esc(s.name)}"></td>
-      <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${s.hourlyPrice ?? ''}" placeholder="${defPrice != null ? defPrice : 'Not set'}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="hourlyPrice" aria-label="Price per hour for ${esc(s.name)}"></span></td>
+      <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${s.hourlyPrice ?? ''}" placeholder="From tutor rates" data-change="entity" data-entity="student" data-id="${s.id}" data-field="hourlyPrice" aria-label="Special price per hour for ${esc(s.name)}"></span></td>
       <td>${plural(upcoming(s.id), 'class', 'classes')}</td>
       <td><input type="checkbox" ${s.active !== false ? 'checked' : ''} data-change="entity" data-entity="student" data-id="${s.id}" data-field="active" aria-label="${esc(s.name)} is active"></td>
     </tr>`).join('')}
     </tbody></table></div>
-    <p class="hint" style="margin-top:10px">Each student’s colour shows on the board and calendar, so you can spot them at a glance. Contact details are admin-only; tutors see names and colours on their own classes.</p>`;
+    <p class="hint" style="margin-top:10px">Each student’s colour shows on the board and calendar, so you can spot them at a glance. Contact details are admin-only; tutors see names and colours on their own classes. Leave the special price empty to charge the tutor’s rate for the student’s year (Tutors and rates); a special price applies to all of the student’s subjects.</p>`;
 }
 const matchesStu = s => !ui.stuQ.trim() || s.name.toLowerCase().includes(ui.stuQ.trim().toLowerCase());
+const sameName = (name, exceptId) => Repo.students().find(s => s.id !== exceptId && s.name.trim().toLowerCase() === String(name).trim().toLowerCase());
+function showDupHint(name) {
+  const box = $('#ns-dup'); if (!box) return;
+  const d = name.trim() && sameName(name);
+  box.hidden = !d;
+  if (d) box.innerHTML = `${icon('alert', 'icon icon-xs')}There’s already a student called “${esc(d.name)}”${d.yearGroup ? ` (Year ${d.yearGroup})` : ''}. Add a word after the name to tell them apart, for example “${esc(d.name)} B” or “${esc(d.name)} Y${d.yearGroup || 9}”.`;
+}
 function filterStudentRows() {
   const q = ui.stuQ.trim().toLowerCase();
   for (const tr of $$('#modal-root tr[data-name]')) tr.hidden = !!q && !tr.dataset.name.includes(q);
@@ -3290,7 +3462,7 @@ function settingsTabHTML() {
     <h3 class="h-sm" style="margin:6px 0 0">Cancellations and billing</h3>
     <div class="grid g2">
       <div class="field"><label for="st-cc">Cancellation deadline</label><select id="st-cc" name="ccDeadline">${timeOptions(st.ccDeadline, 30, 0)}</select><span class="hint">On the day before the class. Telling us before this time isn’t charged.</span></div>
-      <div class="field"><label for="st-price">Default price per hour</label><span class="rate-in">฿<input id="st-price" name="defaultStudentPrice" type="number" min="0" step="50" value="${st.defaultStudentPrice ?? ''}" placeholder="Not set"></span><span class="hint">For students without their own price.</span></div>
+      <div class="field"><label for="st-price">Default price per hour</label><span class="rate-in">฿<input id="st-price" name="defaultStudentPrice" type="number" min="0" step="50" value="${st.defaultStudentPrice ?? ''}" placeholder="Not set"></span><span class="hint">Only used when a tutor has no rates for that year and the student has no special price.</span></div>
     </div>
     <div class="field"><label for="st-pay">When every student on a class cancels late</label><select id="st-pay" name="payTutorLateCC"><option value="yes" ${st.payTutorLateCC ? 'selected' : ''}>Pay the tutor for the class</option><option value="no" ${st.payTutorLateCC ? '' : 'selected'}>Don’t pay the tutor</option></select></div>
     <p class="hint">A new deadline applies to cancellations recorded after you save; earlier ones keep their result.</p>
@@ -3311,7 +3483,11 @@ async function onEntityChange(el) {
     if (v != null && (!Number.isFinite(v) || v < 0)) { toast('Enter the price per hour in baht, for example 900.', { tone:'warn' }); renderManage(); return; }
     if (v != null) v = Math.round(v);
   }
-  if (field === 'name') { v = v.trim(); if (!v) { toast('A name can’t be empty.', { tone:'warn' }); renderManage(); return; } }
+  if (field === 'name') {
+    v = v.trim(); if (!v) { toast('A name can’t be empty.', { tone:'warn' }); renderManage(); return; }
+    const dup = entity === 'student' && sameName(v, id);
+    if (dup && !await confirmDialog({ title:`There’s already a student called “${dup.name}”`, body:'Add a word after the name to tell them apart, or keep the same name anyway.', ok:'Keep the same name' })) { renderManage(); return; }
+  }
   if (entity === 'tutor') {
     const before = Repo.tutor(id);
     const r = await run(() => Repo.saveTutor({ id, [field]:v }));
@@ -3349,6 +3525,24 @@ function viewAccount(uid) {
   ui.acctFocus = uid; ui.manageTab = 'accounts'; renderManage();
   const row = $(`#modal-root tr[data-uid="${uid}"]`);
   row?.scrollIntoView({ block:'nearest' }); row?.querySelector('select')?.focus();
+}
+async function onRateField(el) {
+  const { id, key } = el.dataset, raw = el.value.trim(), v = raw === '' ? null : Math.round(Number(raw));
+  if (raw !== '' && (!Number.isFinite(Number(raw)) || Number(raw) < 0)) { toast('Enter an amount in baht per hour, for example 600, or leave it empty.', { tone:'warn' }); el.value = ''; return; }
+  const r = await run(() => Repo.saveRates(id, { [key]:v }));
+  if (!r.ok) return;
+  const box = $(`#rs-${CSS.escape(id)}`); if (box) box.innerHTML = rateSummary(id);
+  for (const tr of $$(`#modal-root .rate-row tr[data-year]`)) {
+    if (!tr.querySelector(`[data-id="${CSS.escape(id)}"]`)) continue;
+    const y = tr.dataset.year === '' ? null : Number(tr.dataset.year), f = rateFor(id, y);
+    const cell = tr.querySelector('.rate-price'); if (cell) cell.textContent = f.pay != null && f.cut != null ? money(f.pay + f.cut) : '—';
+    if (y != null) {
+      const base = Repo.rateTable()[id] || {}, [pay, cut] = tr.querySelectorAll('input');
+      if (pay) pay.placeholder = base.hourlyRate ?? 'Not set';
+      if (cut) cut.placeholder = base.instituteCut ?? 'Not set';
+      const own = Repo.rateTable()[id]?.byYear?.[yKey(y)]; tr.classList.toggle('rate-own', !!own);
+    }
+  }
 }
 async function onRateChange(el) {
   const raw = el.value.trim(), v = Number(raw);
@@ -3484,19 +3678,22 @@ async function onFormSubmit(form) {
   }
   if (kind === 'material') return addMaterial(form);
   if (kind === 'add-tutor') {
-    const name = String(fd.get('name') || '').trim(), rateRaw = String(fd.get('rate') || '').trim(), email = String(fd.get('email') || '').trim().toLowerCase();
+    const name = String(fd.get('name') || '').trim(), rateRaw = String(fd.get('rate') || '').trim(), cutRaw = String(fd.get('cut') || '').trim(), email = String(fd.get('email') || '').trim().toLowerCase();
     if (!name) { toast('Type the tutor’s name first.', { tone:'warn' }); return; }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Enter a full email address, or leave it empty.', { tone:'warn' }); return; }
     if (email && Repo.tutors().some(x => x.email === email)) { toast('Another tutor already uses that email.', { tone:'warn' }); return; }
     const r = await run(() => Repo.saveTutor({ name, email }));
     if (!r.ok) return;
-    if (rateRaw !== '' && Number(rateRaw) >= 0) await run(() => Repo.setRate(r.value, Math.round(Number(rateRaw))));
+    const num = x => x !== '' && Number(x) >= 0 ? Math.round(Number(x)) : null;
+    if (num(rateRaw) != null || num(cutRaw) != null) await run(() => Repo.saveRates(r.value, { hourlyRate:num(rateRaw), instituteCut:num(cutRaw) }));
     const waiting = email && Repo.users().find(x => (x.email || '').toLowerCase() === email && x.role === 'pending');
     if (waiting) await run(() => Repo.setAccess(waiting.id, `tutor:${r.value}`));
     renderManage(); toast(`${name} added.${waiting ? ` ${waiting.email} is linked and has access.` : email ? ` They get access when they first sign in with ${email}.` : ''}`); $('[data-form="add-tutor"] input[name=name]')?.focus();
   } else if (kind === 'add-student') {
     const name = String(fd.get('name') || '').trim();
     if (!name) { toast('Type the student’s name first.', { tone:'warn' }); return; }
+    const dup = sameName(name);
+    if (dup && !await confirmDialog({ title:`There’s already a student called “${dup.name}”`, body:'Two students with the same name are easy to mix up on the calendar and on receipts. Go back and add a word after the name, or add them anyway.', ok:'Add anyway' })) { $('#ns-name')?.focus(); return; }
     const r = await run(() => Repo.saveStudent({ name, yearGroup:fd.get('yearGroup') ? Number(fd.get('yearGroup')) : null, contact:String(fd.get('contact') || '').trim() }));
     if (!r.ok) return;
     renderManage(); toast(`${name} added.`); $('[data-form="add-student"] input[name=name]')?.focus();
@@ -3626,7 +3823,13 @@ const actions = {
   'bulk-assign': () => bulkAssign(),
   'cal-mode': el => { ui.cal.mode = el.dataset.mode; saveUI(); renderMain(); },
   'cal-nav': el => { const n = Number(el.dataset.dir), m = ui.cal.mode; ui.cal.date = m === 'month' ? addMonths(ui.cal.date, n) : addDays(ui.cal.date, m === 'week' ? 7 * n : n); renderMain(); },
+  'rate-open': el => { ui.rateOpen ||= new Set(); const id = el.dataset.id; ui.rateOpen.has(id) ? ui.rateOpen.delete(id) : ui.rateOpen.add(id); renderManage(); $(`#modal-root [data-action="rate-open"][data-id="${CSS.escape(id)}"]`)?.focus(); },
   'cal-order': el => { ui.cal.order = el.dataset.order; saveUI(); renderMain(); },
+  'cal-tutor': el => {
+    const id = el.dataset.id, sel = calSel();
+    ui.calTutors = !id ? [] : sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id];
+    ui.tgKey = null; saveUI(); renderMain();
+  },
   'cal-jump': el => { ui.cal.date = el.dataset.date; ui.tgKey = null; renderMain(); },
   'show-all-done': () => { ui.showAllDone = !ui.showAllDone; renderMain(); },
   'cal-today': () => { ui.cal.date = bkkNow().date; ui.tgKey = null; renderMain(); },
@@ -3693,11 +3896,14 @@ function onChange(e) {
     case 'tick': return tick(t);
     case 'entity': return onEntityChange(t);
     case 'rate': return onRateChange(t);
+    case 'rate-field': return onRateField(t);
     case 'access': return onAccessChange(t);
     case 'tutor-view': ui.tutorView = t.value; ui.selected.clear(); renderMain(); return;
     case 'min-gap': ui.cal.minGap = Number(t.value); saveUI(); renderMain(); return;
     case 'custom-colour': setColour(t.dataset.id, t.value); return;
+    case 'day-note': return onDayNote(t);
     case 'cc-toggle': return onCcToggle(t);
+    case 'tutor-cancel': return onTutorCancel(t);
     case 'cc-when': return onCcWhen(t);
     case 'tutor-email': return onTutorEmail(t);
     case 'pay-mark': return onPayMark(t);
@@ -3711,6 +3917,7 @@ function onInput(e) {
   const t = e.target;
   if (t.id === 'f-q') { ui.filters.q = t.value; renderMain(); return; }
   if (t.id === 'stu-q') { ui.stuQ = t.value; filterStudentRows(); return; }
+  if (t.id === 'ns-name') { showDupHint(t.value); return; }
   if (t.id === 'bill-q') { ui.billQ = t.value; filterBillRows(); return; }
   if (t.id === 'notes') {
     notesPending = { id:t.dataset.id, text:t.value };
@@ -3864,7 +4071,7 @@ function buildSeed() {
   return {
     schemaVersion:SCHEMA,
     settings:{ app:{ ...DEFAULT_SETTINGS } },
-    users, tutors, tutorRates, students, classes, classProgress, payments:{}, timetable:TIMETABLE.version,
+    users, tutors, tutorRates, students, classes, classProgress, payments:{}, dayNotes:{}, timetable:TIMETABLE.version,
   };
 }
 

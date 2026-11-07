@@ -9,6 +9,7 @@ rules_version = '2';
 //   settings/app       school settings (admins write, tutors read)
 //   classes/{classId}  one class: the admin's plan plus `progress`, the only part
 //                      the class's tutor may change (status, attendance, notes)
+//   dayNotes/{tutorId_date}  the admin's note for one tutor on one day (the tutor reads their own)
 //   meta/public        exists once the app is set up; readable before sign-in
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -74,6 +75,12 @@ service cloud.firestore {
       allow read: if isAdmin() || isTutor();
       allow create: if isAdmin() || (signedIn() && setupOpen() && adminAfter());
       allow update, delete: if isAdmin();
+    }
+
+    match /dayNotes/{noteId} {
+      // a tutor's query must ask for their own notes: where('tutorId', '==', theirId)
+      allow read: if isAdmin() || (isTutor() && resource.data.tutorId == myTutorId());
+      allow write: if isAdmin();
     }
 
     match /classes/{classId} {
