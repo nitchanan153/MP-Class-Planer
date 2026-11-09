@@ -8,7 +8,7 @@ rules_version = '2';
 //   tutorRates, students, payments           admin only (tutors never receive them)
 //   settings/app       school settings (admins write, tutors read)
 //   classes/{classId}  one class: the admin's plan plus `progress`, the only part
-//                      the class's tutor may change (status, attendance, notes)
+//                      the class's tutor may change (status, attendance, notes, statusLog)
 //   dayNotes/{tutorId_date}  the admin's note for one tutor on one day (the tutor reads their own)
 //   meta/public        exists once the app is set up; readable before sign-in
 service cloud.firestore {
@@ -83,6 +83,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // statusLog: who changed a class's status. A tutor may leave it as it is, or add an entry that names themselves.
+    function statusLogOk(p, prior) {
+      return p.get('statusLog', []) == prior.get('statusLog', [])
+        || (p.statusLog is list && p.statusLog.size() > 0 && p.statusLog.size() <= 30
+            && p.statusLog[p.statusLog.size() - 1].by == request.auth.uid
+            && p.statusLog[p.statusLog.size() - 1].to == p.status);
+    }
+
     match /classes/{classId} {
       // a tutor's query must ask for their own classes: where('tutorId', '==', theirId)
       allow read: if isAdmin() || (isTutor() && resource.data.tutorId == myTutorId());
@@ -90,9 +98,10 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         isTutor() && resource.data.tutorId == myTutorId()
         && changedOnly(['progress'])
-        && request.resource.data.progress.keys().hasOnly(['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy'])
+        && request.resource.data.progress.keys().hasOnly(['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy', 'statusLog'])
         && request.resource.data.progress.status in ['todo', 'in_progress', 'completed']
         && request.resource.data.progress.updatedBy == request.auth.uid
+        && statusLogOk(request.resource.data.progress, resource.data.get('progress', {}))
       );
     }
   }

@@ -176,6 +176,17 @@ body:not(.cloud) .cloud-only,body.cloud .local-only{display:none !important}
 .dots i{width:9px;height:9px;border-radius:2px;border:1.5px solid #A3AEC2;display:inline-block}
 .dots i.on{background:var(--ok);border-color:var(--ok)}
 .card-actions{display:flex;justify-content:space-between;gap:6px}
+.who{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12px;line-height:1.35;color:var(--ink-3)}
+.who>span{display:block}
+.who .icon{vertical-align:-2px;margin-right:4px}
+.who strong{color:var(--ink-2)}
+.who .who-completed .icon{color:var(--green, #2F8A57)}
+.who .who-cc .icon{color:var(--red)}
+.dr-head .who{margin-top:8px;font-size:13px}
+.hist{list-style:none;margin:0;padding:0;font-size:13.5px}
+.hist li{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;padding:7px 0;border-bottom:1px solid var(--rule-2);align-items:baseline}
+.hist-when{color:var(--ink-3);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hist-by{font-weight:700;color:var(--ink-2);text-align:right}
 .bulkbar{position:sticky;bottom:14px;z-index:15;margin:-24px 20px 20px;background:var(--ink);color:#fff;border-radius:12px;padding:10px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;box-shadow:var(--lift)}
 .bulkbar select{width:auto;color:var(--ink)}
 .bulk-count{font-weight:700;margin-right:4px}
@@ -690,7 +701,7 @@ body.has-bulkbar .toasts{bottom:86px}
                              amount, minutes (what the slip or receipt said when it was ticked)   ADMIN ONLY
 
    classes/{classId}         the plan, written by admins only
-     title, subject, qualification, yearGroup, examBoard,
+     title, subject, qualification, yearGroup, examBoard, ccLog (who marked or removed a cancellation),
      date 'YYYY-MM-DD', startTime, endTime (Bangkok time), startAt, endAt,
      mode, meetingLink, room, tutorId, tutorName,
      studentIds[], studentNames{id: name}, studentColors{id: '#hex'}, adminChecklist{key: {done, by, byName, at}},
@@ -810,7 +821,7 @@ const ATT = [
   { id:'absent',  label:'Absent' },
   { id:'excused', label:'Excused' },
 ];
-const PROGRESS_KEYS = ['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy'];
+const PROGRESS_KEYS = ['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy', 'statusLog'];
 const USER_CREATE_KEYS = ['email', 'displayName', 'photoURL', 'role', 'tutorId', 'createdAt', 'lastLoginAt'];
 const DEFAULT_SETTINGS = { schoolName:'Class Planner', timezone:TZ, dayStart:'07:00', dayEnd:'23:00', rooms:[], ccDeadline:'20:00', payTutorLateCC:true, defaultStudentPrice:null, docName:'Morpheus', docDetails:'' };
 /* Sign-in accounts and their passwords live in ACCESS (see Vault) until Firebase Authentication is connected. */
@@ -1237,7 +1248,7 @@ const Repo = (() => {
      (one read per class instead of two). Here it is split back into classes + classProgress. */
   const subs = new Map(), holders = new Map(), loadedMonths = new Set();
   let role = null, onStatus = () => {}, tutorAll = false;
-  const PROGRESS_FIELDS = ['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy'];
+  const PROGRESS_FIELDS = ['status', 'attendance', 'tutorChecklist', 'lessonNotes', 'updatedAt', 'updatedBy', 'statusLog'];
   const clean = x => JSON.parse(JSON.stringify(x));
   function putDoc(col, id, data) {
     if (col !== 'classes') { db[col][id] = data; return; }
@@ -1394,7 +1405,7 @@ const Repo = (() => {
   function joinClass(id) {
     const plan = db.classes[id];
     const prog = allowed('classProgress', id) ? db.classProgress[id] : null;
-    return { ...plan, id, status:prog?.status || 'todo', attendance:prog?.attendance || {}, tutorChecklist:prog?.tutorChecklist || {}, lessonNotes:prog?.lessonNotes || '' };
+    return { ...plan, id, status:prog?.status || 'todo', attendance:prog?.attendance || {}, tutorChecklist:prog?.tutorChecklist || {}, lessonNotes:prog?.lessonNotes || '', statusLog:prog?.statusLog || [] };
   }
 
   return {
@@ -1538,7 +1549,7 @@ const Repo = (() => {
       ]);
     },
     /* rec undefined removes the cancellation */
-    setCancellation: (id, sid, rec) => batch([{ op:'update', col:'classes', id, patch:{ [`cancellations.${sid}`]: rec, updatedAt:now() } }]),
+    setCancellation: (id, sid, rec, extra = {}) => batch([{ op:'update', col:'classes', id, patch:{ [`cancellations.${sid}`]: rec, ...extra, updatedAt:now() } }]),
     deleteClass: id => batch([{ op:'delete', col:'classes', id }, { op:'delete', col:'classProgress', id }]),
     /* pairs: [{ id, tutorId }] — moves classes to another tutor in one batch */
     assignTutors(pairs) {
@@ -1576,7 +1587,7 @@ const Repo = (() => {
       return batch([{ op:'set', col:'tutorRates', id:tutorId, data:{ ...next, updatedAt:now(), updatedBy:auth()?.uid } }]);
     },
     /* The tutor cancelled: nobody is charged and the tutor isn't paid */
-    setTutorCancel: (id, rec) => batch([{ op:'update', col:'classes', id, patch:{ tutorCancel:rec || null, updatedAt:now() } }]),
+    setTutorCancel: (id, rec, extra = {}) => batch([{ op:'update', col:'classes', id, patch:{ tutorCancel:rec || null, ...extra, updatedAt:now() } }]),
     setDayNote(tutorId, date, text) {
       const id = `${tutorId}_${date}`, clean = String(text || '').trim().slice(0, 600);
       if (!clean) return db.dayNotes[id] ? batch([{ op:'delete', col:'dayNotes', id }]) : Promise.resolve();
@@ -2154,6 +2165,34 @@ function dotsHTML(c, g, label) {
   const cl = checklistOf(c, g), done = CHECKLISTS[g].filter(i => cl[i.key]?.done).length;
   return `<span class="prog" title="${label} checklist: ${done} of ${CHECKLISTS[g].length} done">${label}<span class="dots" aria-hidden="true">${CHECKLISTS[g].map(i => `<i class="${cl[i.key]?.done ? 'on' : ''}"></i>`).join('')}</span><span class="sr-only">${done} of ${CHECKLISTS[g].length} done</span></span>`;
 }
+/* "Completed by Kru Mo · Mon 9 Nov, 20:31" and who marked the cancellation, on the card */
+const STATUS_DONE = { todo:'Moved back to To-Do', in_progress:'Moved to In Progress', completed:'Completed' };
+function lastCancel(c) {
+  if (c.tutorCancel) return { label:'Tutor cancel', byName:c.tutorCancel.byName, at:c.tutorCancel.at };
+  const recs = c.studentIds.map(sid => ({ sid, r:ccOf(c, sid) })).filter(x => x.r).map(x => ({ label:`CC ${studentName(c, x.sid)}`, byName:x.r.byName, at:x.r.recordedAt || x.r.at }));
+  return recs.sort((a, b) => String(b.at).localeCompare(String(a.at)))[0] || null;
+}
+function whoHTML(c) {
+  const s = (c.statusLog || []).at(-1), x = lastCancel(c), out = [];
+  if (s) out.push(`<span class="who-${s.to}">${icon(s.to === 'completed' ? 'check' : 'right', 'icon icon-xs')}${STATUS_DONE[s.to] || s.to} by <strong>${esc(s.byName || 'someone')}</strong> · ${fmtWhen(s.at)}</span>`);
+  if (x) out.push(`<span class="who-cc">${icon('x', 'icon icon-xs')}${esc(x.label)} by <strong>${esc(x.byName || 'someone')}</strong>${x.at ? ` · ${fmtWhen(x.at)}` : ''}</span>`);
+  return out.length ? `<div class="who">${out.join('')}</div>` : '';
+}
+/* everything recorded on the class, newest first */
+function historyHTML(c) {
+  const ev = [];
+  for (const s of c.statusLog || []) ev.push({ at:s.at, by:s.byName, text:`${STATUS_DONE[s.to] || s.to}${s.from ? ` <span class="muted">(was ${STATUSES.find(x => x.id === s.from)?.label || s.from})</span>` : ''}` });
+  const CC_TEXT = { 'cc':n => `${n} cancelled (CC)`, 'cc-undo':n => `CC removed: ${n} is back on the class`, 'cc-time':n => `Changed when ${n} told us`, 'tutor-cancel':() => 'Tutor cancelled the class', 'tutor-cancel-undo':() => 'Tutor cancel removed: the class is back on' };
+  for (const e of c.ccLog || []) ev.push({ at:e.at, by:e.byName, text:esc((CC_TEXT[e.what] || (() => e.what))(e.name || 'Student')) });
+  if (!(c.ccLog || []).length) {   // cancellations marked before the log existed
+    if (c.tutorCancel) ev.push({ at:c.tutorCancel.at, by:c.tutorCancel.byName, text:'Tutor cancelled the class' });
+    for (const sid of c.studentIds) { const r = ccOf(c, sid); if (r) ev.push({ at:r.recordedAt || r.at, by:r.byName, text:esc(`${studentName(c, sid)} cancelled (CC)`) }); }
+  }
+  ev.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  return `<h3 id="h-hist">History <span class="muted">who changed the status or cancellations</span></h3>
+    ${ev.length ? `<ul class="hist">${ev.slice(0, 40).map(e => `<li><span class="hist-when">${e.at ? fmtWhen(e.at) : ''}</span><span>${e.text}</span><span class="hist-by">${esc(e.by || 'someone')}</span></li>`).join('')}</ul>`
+      : '<p class="empty-note">Nothing recorded yet. Status changes and cancellations show here with who made them.</p>'}`;
+}
 function cardHTML(c) {
   const q = qual(c.qualification), sel = ui.selectMode, picked = ui.selected.has(c.id);
   const movable = !sel && can('class.move', c);
@@ -2172,6 +2211,7 @@ function cardHTML(c) {
       <span>${icon('users')}${plural(c.studentIds.length, 'student')}</span>
     </div>
     <div class="progress">${dotsHTML(c, 'admin', 'Admin')}${dotsHTML(c, 'tutor', 'Tutor')}${n ? `<span class="prog">Attendance ${marked}/${n}</span>` : ''}</div>
+    ${whoHTML(c)}
     ${movable ? `<div class="card-actions">
       ${prev ? `<button type="button" class="btn btn-sm btn-quiet" data-action="move" data-id="${c.id}" data-status="${prev.id}" aria-label="Move to ${prev.label}">${icon('left')}${prev.label}</button>` : '<span></span>'}
       ${next ? `<button type="button" class="btn btn-sm btn-quiet" data-action="move" data-id="${c.id}" data-status="${next.id}" aria-label="Move to ${next.label}">${next.label}${icon('right')}</button>` : ''}
@@ -2808,6 +2848,7 @@ function drawerHTML(c) {
           <div><dt>${icon('user')}<span class="sr-only">Tutor</span></dt><dd>${esc(classTutor(c))}</dd></div>
         </dl>
         <div class="seg" role="group" aria-label="Status">${STATUSES.map(s => `<button type="button" data-action="move" data-id="${c.id}" data-status="${s.id}" aria-pressed="${c.status === s.id}" ${can('class.move', c) ? '' : 'disabled'}>${s.label}</button>`).join('')}</div>
+        ${whoHTML(c)}
         ${!can('class.edit', c) ? `<p class="hint" style="margin-top:8px">${icon('lock', 'icon icon-xs')} Subject, time, students and links are set by the admin.</p>` : ''}
         ${c.tutorCancel ? `<div class="alerts"><div class="alert alert-cc">${icon('x')}<div><strong>The tutor cancelled this class</strong><span>No student is charged and the tutor isn’t paid. The time shows as free in the calendar.</span></div></div></div>`
           : isCancelled(c) ? `<div class="alerts"><div class="alert alert-cc">${icon('x')}<div><strong>Every student cancelled this class (CC)</strong><span>No attendance or lesson notes needed. The time shows as free in the calendar.</span></div></div></div>` : ''}
@@ -2821,6 +2862,7 @@ function drawerHTML(c) {
         <textarea id="notes" data-id="${c.id}" rows="5" placeholder="What was covered, homework set, who needs follow-up" ${can('notes', c) ? '' : 'disabled'}>${esc(c.lessonNotes || '')}</textarea>
       </section>
       <section class="section" aria-labelledby="h-mat">${materialsHTML(c)}</section>
+      <section class="section" aria-labelledby="h-hist">${historyHTML(c)}</section>
       <section class="section" aria-labelledby="h-msg">
         <h3 id="h-msg">Message to students</h3>
         <div class="msg-controls">
@@ -2896,14 +2938,14 @@ function ccSectionHTML(c) {
 async function onTutorCancel(el) {
   const c = Repo.getClass(el.dataset.id); if (!c) return;
   const rec = el.checked ? { at:new Date().toISOString(), by:ui.auth.uid, byName:myName() || '' } : null;
-  const r = await run(() => Repo.setTutorCancel(c.id, rec));
+  const r = await run(() => Repo.setTutorCancel(c.id, rec, ccLogWith(c, { what:rec ? 'tutor-cancel' : 'tutor-cancel-undo' })));
   if (!r.ok) { el.checked = !el.checked; return; }
   toast(rec ? `Marked as cancelled by ${classTutor(c)}. No student is charged and the tutor isn’t paid for this class.` : 'The class is back on.');
 }
 async function onCcToggle(el) {
   const c = Repo.getClass(el.dataset.id), sid = el.dataset.student; if (!c) return;
   const n = bkkNow(), rec = el.checked ? ccRecord(c, isoAt(n.date, fromMin(n.min))) : undefined;
-  const r = await run(() => Repo.setCancellation(c.id, sid, rec));
+  const r = await run(() => Repo.setCancellation(c.id, sid, rec, ccLogWith(c, { what:rec ? 'cc' : 'cc-undo', sid, name:studentName(c, sid) })));
   if (!r.ok) { el.checked = !el.checked; return; }
   if (rec) toast(`${studentName(c, sid)} marked as cancelled, told us now: ${rec.charge ? 'after the deadline, so it’s charged' : 'before the deadline, so it isn’t charged'}. Change the time if they told you earlier.`);
   else toast(`${studentName(c, sid)} is back on the class.`);
@@ -2913,7 +2955,7 @@ async function onCcWhen(el) {
   if (!c || !prev) return;
   const date = $(`#cc-date-${sid}`)?.value, time = $(`#cc-time-${sid}`)?.value;
   if (!date || !time) return;
-  await run(() => Repo.setCancellation(c.id, sid, ccRecord(c, isoAt(date, time), prev)));
+  await run(() => Repo.setCancellation(c.id, sid, ccRecord(c, isoAt(date, time), prev), ccLogWith(c, { what:'cc-time', sid, name:studentName(c, sid), told:isoAt(date, time) })));
 }
 function materialsHTML(c) {
   const editable = can('materials', c), mats = c.materials || [];
@@ -2955,17 +2997,29 @@ function buildMessage(c, kind) {
 }
 
 /* ---------- Class actions ---------- */
+/* Each status change is logged with who made it (kept on the class, last 20). Until the updated
+   firestore.rules are published a tutor's change is saved without the log entry. */
+const logEntry = extra => ({ ...extra, by:ui.auth.uid, byName:myName() || '', at:new Date().toISOString() });
+async function saveStatus(id, status, prev) {
+  const c = Repo.getClass(id), statusLog = [...(c?.statusLog || []), logEntry({ from:prev, to:status })].slice(-20);
+  if (!ui.statusLogBlocked) {
+    try { await Repo.updateProgress(id, { status, statusLog }); return { ok:true }; }
+    catch (e) { if (!(e?.code === 'permission-denied' && !isAdmin())) return run(() => { throw e; }); ui.statusLogBlocked = true; }
+  }
+  return run(() => Repo.updateProgress(id, { status }));
+}
+const ccLogWith = (c, entry) => ({ ccLog:[...(c.ccLog || []), logEntry(entry)].slice(-30) });
 async function moveClass(id, status) {
   const c = Repo.getClass(id); if (!c || c.status === status || !STATUS_IDS.includes(status)) return;
   const prev = c.status;
-  const r = await run(() => Repo.updateProgress(id, { status }));
+  const r = await saveStatus(id, status, prev);
   if (!r.ok) return;
   const c2 = Repo.getClass(id);
   const open = openItems(c2, 'tutor').length + (isAdmin() ? openItems(c2, 'admin').length : 0);
   const label = STATUSES.find(s => s.id === status).label;
   const warn = status === 'completed' && open;
   toast(warn ? `Moved to Completed. ${plural(open, 'checklist item is', 'checklist items are')} still open.` : `Moved to ${label}.`,
-    { tone:warn ? 'warn' : '', action:{ label:'Undo', fn:() => run(() => Repo.updateProgress(id, { status:prev })) } });
+    { tone:warn ? 'warn' : '', action:{ label:'Undo', fn:() => saveStatus(id, prev, status) } });
 }
 async function setAttendance(id, sid, status) {
   const c = Repo.getClass(id); if (!c) return;
