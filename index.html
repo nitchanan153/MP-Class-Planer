@@ -526,6 +526,9 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .notice{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:8px;background:var(--amber-soft);color:#6E4304;margin-bottom:14px;font-size:14px}
 .add-row{display:grid;grid-template-columns:1.3fr .7fr 1.4fr auto;gap:8px;margin-bottom:14px;padding:12px;background:var(--paper);border-radius:8px}
 .add-row.tutors{grid-template-columns:1.3fr .8fr 1.5fr auto}
+.add-row[data-form=add-student]{grid-template-columns:1.3fr .65fr .75fr 1.3fr auto}
+.tbl select[data-field=system]{min-width:118px}
+.tbl select[data-field=yearGroup]{min-width:132px}
 .table-wrap{overflow-x:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:14px}
 .tbl th{text-align:left;font-size:12.5px;color:var(--ink-3);padding:6px 6px;border-bottom:1px solid var(--rule)}
@@ -595,7 +598,7 @@ body.has-bulkbar .toasts{bottom:86px}
   .cf-side{position:static}
   .checklists{grid-template-columns:1fr}
   .mat-form{grid-template-columns:1fr}
-  .add-row,.add-row.tutors{grid-template-columns:1fr 1fr}
+  .add-row,.add-row.tutors,.add-row[data-form=add-student]{grid-template-columns:1fr 1fr}
   .legend .hint{display:none}
   .mt-stats{margin-left:0}
   .tchips .hint{display:none}
@@ -678,7 +681,7 @@ body.has-bulkbar .toasts{bottom:86px}
                              tutorId (set by an admin when linking), email, displayName
    tutors/{tutorId}          name, active, email (Google sign-in, lower case), linkedUid (null until linked)
    tutorRates/{tutorId}      hourlyRate, currency            ADMIN ONLY (tutors can't read)
-   students/{studentId}      name, yearGroup, contact, color, hourlyPrice, active   ADMIN ONLY
+   students/{studentId}      name, system ('UK' | 'US' | 'University'), yearGroup, contact, color, hourlyPrice, active   ADMIN ONLY
    settings/app              schoolName, timezone, dayStart, dayEnd, rooms[],
                              ccDeadline 'HH:mm' (day before the class), payTutorLateCC, defaultStudentPrice,
                              docName, docDetails (header of pay slips and receipts)
@@ -770,7 +773,19 @@ const NO_COLOUR = '#8C96A8';
 const isHex = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
 /* Used only when importing: below Year 9 Pre-IGCSE, Y9–11 IGCSE, Y12–13 AS / A-level */
 const yearToQual = y => !y ? '' : y <= 8 ? 'pre_igcse' : y <= 11 ? 'igcse' : 'as_a_level';
-const YEARS = [6,7,8,9,10,11,12,13];
+/* Year groups per system: UK Year 5–13, US Grade 5–12, University Year 1–4 (stored as the number) */
+const YEAR_RANGES = { UK:[5,6,7,8,9,10,11,12,13], US:[5,6,7,8,9,10,11,12], University:[1,2,3,4] };
+const yearsFor = sys => YEAR_RANGES[sys] || YEAR_RANGES.UK;
+const yearLabel = (sys, y) => !y ? '' : sys === 'US' ? `Grade ${y}` : sys === 'University' ? `Uni Year ${y}` : `Year ${y}`;
+const stuSystem = s => BOARDS.includes(s?.system) ? s.system : 'UK';
+const stuYear = s => yearLabel(stuSystem(s), s?.yearGroup);
+/* the usual level for a system and year group (null when there isn't an obvious one) */
+function suggestQual(sys, y) {
+  if (sys === 'University') return 'university';
+  if (!y) return null;
+  if (sys === 'US') return y <= 7 ? 'my_6_7' : y <= 9 ? 'my_8_9' : y >= 11 ? 'ib_a_level' : null;
+  return y <= 8 ? 'pre_igcse' : y <= 11 ? 'igcse' : 'as_a_level';
+}
 const SUBJECTS = ['Mathematics','Additional Mathematics','Further Mathematics','Physics','Chemistry','Biology','Combined Science','English Language','English Literature','English as a Second Language','Economics','Business','Accounting','Computer Science','Psychology','Geography','History','Thai','Chinese'];
 const STATUSES = [
   { id:'todo',        label:'To-Do' },
@@ -1713,8 +1728,9 @@ function bkkParts(iso) { const p = {}; for (const x of partsFmt.formatToParts(ne
 function minuteOptions(cur) { const set = new Set(); for (let m = 0; m < 1440; m += 5) set.add(fromMin(m)); if (cur) set.add(cur); return [...set].sort().map(t => `<option value="${t}" ${t === cur ? 'selected' : ''}>${t}</option>`).join(''); }
 const dot = col => `<i class="dot" style="background:${col || NO_COLOUR}"></i>`;
 const courseLabel = c => [c.qualification ? qual(c.qualification).label : '', c.subject].filter(Boolean).join(' ');
-const courseDetails = c => [boardOf(c), c.yearGroup ? `Year ${c.yearGroup}` : ''].filter(Boolean).join(', ');
-const classTags = (c, withBoard) => `${c.qualification ? `<span class="tag tag-q">${qual(c.qualification).label}</span>` : ''}${c.yearGroup ? `<span class="tag">Year ${c.yearGroup}</span>` : ''}${withBoard && boardOf(c) ? `<span class="tag">${esc(boardOf(c))}</span>` : ''}`;
+const classYearLabel = c => yearLabel(boardOf(c) || 'UK', c.yearGroup);
+const courseDetails = c => [boardOf(c), classYearLabel(c)].filter(Boolean).join(', ');
+const classTags = (c, withBoard) => `${c.qualification ? `<span class="tag tag-q">${qual(c.qualification).label}</span>` : ''}${c.yearGroup ? `<span class="tag">${classYearLabel(c)}</span>` : ''}${withBoard && boardOf(c) ? `<span class="tag">${esc(boardOf(c))}</span>` : ''}`;
 const activeTutors = () => Repo.tutors().filter(t => t.active !== false).sort((a, b) => a.name.localeCompare(b.name));
 const tutorName = id => Repo.tutor(id)?.name || 'Unassigned';
 const classTutor = c => Repo.tutor(c.tutorId)?.name || c.tutorName || 'Unassigned';
@@ -2086,7 +2102,7 @@ function boardClasses() {
     (f.qual === 'all' || (f.qual === 'none' ? !classLevel(c) : classLevel(c) === f.qual)) &&
     (f.attention || inRange(c, f.range || defaultRange())) &&
     (!f.attention || classAlerts(c).length) &&
-    (!q || [c.title, c.subject, boardOf(c), qual(c.qualification).label, `year ${c.yearGroup}`, classTutor(c), c.room, ...c.studentIds.map(s => studentName(c, s))].join(' ').toLowerCase().includes(q))
+    (!q || [c.title, c.subject, boardOf(c), qual(c.qualification).label, classYearLabel(c), classTutor(c), c.room, ...c.studentIds.map(s => studentName(c, s))].join(' ').toLowerCase().includes(q))
   );
 }
 function tutorViewSelect(id) {
@@ -2413,7 +2429,7 @@ function monthBill(month) {
     const s = Repo.student(sid), r = ccOf(c, sid), mins = classMinutes(c), subject = c.subject || 'Other';
     const kind = c.tutorCancel ? 'credit' : r ? (r.charge ? 'late' : 'credit') : c.status === 'completed' ? 'taught' : 'open';
     const { price, special } = studentPrice(c, sid), charged = kind === 'taught' || kind === 'late', key = billKey(sid, subject);
-    (by[key] ||= { key, ref:billRef(sid, subject), sid, subject, name:studentName(c, sid), year:s?.yearGroup ?? null, color:s?.color || null, lines:[] })
+    (by[key] ||= { key, ref:billRef(sid, subject), sid, subject, name:studentName(c, sid), year:stuYear(s) || null, color:s?.color || null, lines:[] })
       .lines.push({ c, r, mins, kind, byTutor:!!c.tutorCancel, charged, price, special, amount:charged && price != null ? mins / 60 * price : null });
   }
   return Object.values(by).map(x => {
@@ -2445,7 +2461,7 @@ function studentBillData(month) {
   const carried = creditInto(month), rows = monthBill(month);
   for (const [key, { mins, x }] of Object.entries(carried)) if (mins > 0 && !rows.some(r => r.key === key)) {   // credit but no classes this month
     const s = Repo.student(x.sid);
-    rows.push({ key, ref:x.ref, sid:x.sid, subject:x.subject, name:s?.name || x.name, year:s?.yearGroup ?? x.year, color:s?.color || x.color, tutors:x.tutors, price:x.price, lines:[], taught:0, late:0, credit:0, open:0, chargedMin:0, amount:null });
+    rows.push({ key, ref:x.ref, sid:x.sid, subject:x.subject, name:s?.name || x.name, year:stuYear(s) || x.year, color:s?.color || x.color, tutors:x.tutors, price:x.price, lines:[], taught:0, late:0, credit:0, open:0, chargedMin:0, amount:null });
   }
   return rows.map(x => {
     const prevCredit = carried[x.key]?.mins || 0, booked = x.taught + x.late + x.credit + x.open;
@@ -2518,7 +2534,7 @@ function studentBillsHTML(month) {
     <div class="table-card"><table class="bill-table">
       <thead><tr><th>Student</th><th>Subject</th><th class="num">Classes</th><th class="num">Booked</th><th class="num">Studied</th><th class="num">Late CC</th><th class="num">Not charged</th><th class="num">Not taught yet</th><th class="num">Credit from ${pm}</th><th class="num">Price</th><th class="num">Amount paid</th><th class="num">Credit for ${nm}</th><th>Received</th><th></th></tr></thead>
       <tbody>${rows.map(r => `<tr data-name="${esc(r.name.toLowerCase())}" ${hide(r)}>
-        <td><strong>${dot(r.color)}${esc(r.name)}</strong>${r.year ? ` <span class="muted">Year ${r.year}</span>` : ''}</td>
+        <td><strong>${dot(r.color)}${esc(r.name)}</strong>${r.year ? ` <span class="muted">${r.year}</span>` : ''}</td>
         <td>${esc(r.subject)}<br><span class="muted">${esc(r.tutors.join(', '))}</span></td>
         <td class="num">${r.lines.length}</td><td class="num">${hoursOr(r.booked)}</td><td class="num">${hoursOr(r.taught)}</td><td class="num">${hoursOr(r.late)}</td><td class="num">${hoursOr(r.credit)}</td><td class="num muted">${hoursOr(r.open)}</td>
         <td class="num">${hoursOr(r.prevCredit)}</td><td class="num">${r.price != null ? money(r.price) : '—'}</td><td class="num">${r.paidAmount != null ? money(r.paidAmount) : '—'}</td><td class="num">${r.nextCredit ? `<span class="credit-in">${hoursLabel(r.nextCredit)}</span>` : '—'}</td>
@@ -2606,7 +2622,7 @@ function receiptHTML(r, month, pays) {
   const pm = monthName(prevMonth(month)), nm = monthName(nextMonth(month)), h = m => m ? hoursLabel(m) : '0 h';
   return `<article class="a5">
     ${docHead('Receipt', docNo('RC', month, r.ref))}
-    <section class="doc-parties"><div><span class="doc-label">Received from</span><strong>Parent of ${esc(r.name)}</strong>${r.year ? `<span>Student, Year ${r.year}</span>` : '<span>Student</span>'}</div>
+    <section class="doc-parties"><div><span class="doc-label">Received from</span><strong>Parent of ${esc(r.name)}</strong>${r.year ? `<span>Student, ${r.year}</span>` : '<span>Student</span>'}</div>
       <div><span class="doc-label">Tuition for</span><strong>${esc(r.subject)}, ${monthName(month)}</strong><span>${r.tutors.length ? `With ${esc(r.tutors.join(', '))}, ` : ''}${plural(r.lines.length, 'class', 'classes')} booked</span></div></section>
     <div class="${r.price != null ? 'doc-cols' : ''}"><div><h2 class="doc-h">Hours</h2>
     <table class="doc-sum">
@@ -3085,7 +3101,7 @@ function classFormHTML() {
         </div>
         <div class="grid g2">
           <div class="field"><label for="cf-qual">Qualification</label><select id="cf-qual" name="qualification">${qualOptions(d.examBoard, d.qualification)}</select><p class="hint" id="cf-price"></p></div>
-          <div class="field"><label for="cf-year">Year group</label><select id="cf-year" name="yearGroup">${opt('', 'Not set', !d.yearGroup)}${YEARS.map(y => opt(y, `Year ${y}`, y === Number(d.yearGroup))).join('')}</select></div>
+          <div class="field"><label for="cf-year">Year group</label><select id="cf-year" name="yearGroup">${yearOptions(d.examBoard, d.yearGroup)}</select></div>
         </div>
         <div class="grid g3">
           <div class="field"><label for="cf-date">Date</label><input id="cf-date" name="date" type="date" value="${esc(d.date)}"></div>
@@ -3114,6 +3130,21 @@ function subjectChoices(cur) {
   const extra = [...new Set([...Repo.classes().map(c => c.subject), cur].filter(x => x && !SUBJECTS.includes(x)))].sort((a, b) => a.localeCompare(b));
   return [...SUBJECTS, ...extra];
 }
+function yearOptions(sys, cur) {
+  const ys = yearsFor(sys), n = Number(cur) || null;
+  return `<option value="" ${n ? '' : 'selected'}>Not set</option>` + ys.map(y => `<option value="${y}" ${y === n ? 'selected' : ''}>${yearLabel(sys, y)}</option>`).join('')
+    + (n && !ys.includes(n) ? `<option value="${n}" selected>${yearLabel(sys, n)}</option>` : '');
+}
+/* set exam board, year group and (unless chosen by hand) the qualification, keeping the selects in step */
+function applyLevel(f, sys, year) {
+  const d = fs.draft, y = year && yearsFor(sys).includes(Number(year)) ? Number(year) : null;
+  f.elements.examBoard.value = sys; d.examBoard = sys;
+  f.elements.yearGroup.innerHTML = yearOptions(sys, y); d.yearGroup = y;
+  const q = suggestQual(sys, y), cur = f.elements.qualification.value;
+  const keep = fs.qualTouched && QUALS.some(x => x.id === cur && x.board === sys);
+  f.elements.qualification.innerHTML = qualOptions(sys, keep ? cur : q || QUALS.find(x => x.board === sys)?.id || '');
+  d.qualification = f.elements.qualification.value;
+}
 function qualOptions(board, cur) {
   const list = QUALS.filter(q => q.board === board);
   return `<option value="" ${cur ? '' : 'selected'}>Not set</option>` + list.map(q => `<option value="${q.id}" ${q.id === cur ? 'selected' : ''}>${esc(qualName(q))}</option>`).join('');
@@ -3137,7 +3168,9 @@ function onFormInput(e) {
   const t = e.target; if (!fs) return;
   if (t.id === 'cf-stu-add') return e.type === 'change' && onStudentSelect(t);
   if (t.id === 'cf-new-name') return showNewDup(t.value);
-  if (t.name === 'examBoard') { const sel = t.form.elements.qualification; sel.innerHTML = qualOptions(t.value, ''); sel.value = QUALS.find(q => q.board === t.value)?.id || ''; }
+  if (t.name === 'examBoard') { fs.qualTouched = false; applyLevel(t.form, t.value, t.form.elements.yearGroup.value); }
+  if (t.name === 'yearGroup' && !fs.qualTouched) { const q = suggestQual(t.form.elements.examBoard.value, Number(t.value) || null); if (q) t.form.elements.qualification.value = q; }
+  if (t.name === 'qualification') fs.qualTouched = true;
   const prevS = fs.draft.startTime, prevE = fs.draft.endTime;
   readForm(); fs.dirty = true;
   if (CLOUD && t.name === 'date' && /^\d{4}-\d\d/.test(fs.draft.date)) Repo.ensureMonths([fs.draft.date.slice(0, 7)]).then(() => fs && renderAvail());
@@ -3166,13 +3199,15 @@ function busyText(sid) {
 /* A native dropdown: one tap opens the list on iPad. Grouped by year, the class's year first. */
 function renderPickerResults() {
   const sel = $('#cf-stu-add'); if (!sel) return;
-  const d = fs.draft, yg = Number(d.yearGroup) || null;
+  const d = fs.draft, here = `${d.examBoard || 'UK'}|${Number(d.yearGroup) || ''}`;
   const list = Repo.students().filter(s => s.active !== false && !d.studentIds.includes(s.id));
-  const groups = groupBy(list, s => s.yearGroup ?? '');
-  const keys = Object.keys(groups).sort((a, b) => (a === '') - (b === '') || (Number(b) === yg) - (Number(a) === yg) || Number(a) - Number(b));
+  const groups = groupBy(list, s => `${stuSystem(s)}|${s.yearGroup || ''}`);
+  const rank = k => { const [sys, y] = k.split('|'); return [k === here ? 0 : 1, !y ? 1 : 0, BOARDS.indexOf(sys), Number(y) || 0]; };
+  const keys = Object.keys(groups).sort((a, b) => { const x = rank(a), z = rank(b); for (let i = 0; i < x.length; i++) if (x[i] !== z[i]) return x[i] - z[i]; return 0; });
+  const label = k => { const [sys, y] = k.split('|'); return `${sys} · ${y ? yearLabel(sys, Number(y)) : 'year not set'}${k === here ? ' (this class)' : ''}`; };
   const row = s => { const b = busyText(s.id); return `<option value="${esc(s.id)}">${esc(s.name)}${b ? ` ⚠ ${esc(b)}` : ''}</option>`; };
   const html = `<option value="">${list.length ? 'Tap to choose a student' : 'Everyone is on this class'}</option>`
-    + keys.map(k => `<optgroup label="${k === '' ? 'Year not set' : `Year ${k}${Number(k) === yg ? ' (this class)' : ''}`}">${groups[k].sort((a, b) => a.name.localeCompare(b.name)).map(row).join('')}</optgroup>`).join('')
+    + keys.map(k => `<optgroup label="${esc(label(k))}">${groups[k].sort((a, b) => a.name.localeCompare(b.name)).map(row).join('')}</optgroup>`).join('')
     + '<option value="__new">+ New student…</option>';
   if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
   sel.value = '';
@@ -3186,7 +3221,7 @@ function onStudentSelect(sel) {
 function pickStudent(sid) {
   if (!fs.draft.studentIds.includes(sid)) fs.draft.studentIds.push(sid);
   const s = Repo.student(sid);
-  if (fs.draft.studentIds.length === 1 && s?.yearGroup && !fs.isEdit) { fs.draft.yearGroup = s.yearGroup; const y = $('#cf-year'); if (y) y.value = String(s.yearGroup); }
+  if (fs.draft.studentIds.length === 1 && s && !fs.isEdit) { fs.qualTouched = false; applyLevel($('#class-form'), stuSystem(s), s.yearGroup); showPriceHint(); }
   fs.dirty = true;
   renderPicker(); renderAvail();
 }
@@ -3194,13 +3229,13 @@ function showNewDup(name) {
   const box = $('#cf-new-dup'); if (!box) return;
   const d = name.trim() && sameName(name);
   box.hidden = !d;
-  if (d) box.innerHTML = `${icon('alert', 'icon icon-xs')}There’s already a student called “${esc(d.name)}”${d.yearGroup ? ` (Year ${d.yearGroup})` : ''}. Choose them from the list, or add a word after the name (for example “${esc(d.name)} B”) for someone new.`;
+  if (d) box.innerHTML = `${icon('alert', 'icon icon-xs')}There’s already a student called “${esc(d.name)}”${d.yearGroup ? ` (${stuYear(d)})` : ''}. Choose them from the list, or add a word after the name (for example “${esc(d.name)} B”) for someone new.`;
 }
 async function createNewStudent() {
   const input = $('#cf-new-name'), name = input?.value.trim(); if (!name) { input?.focus(); return; }
   const dup = sameName(name);
   if (dup && !await confirmDialog({ title:`There’s already a student called “${dup.name}”`, body:'Two students with the same name are easy to mix up. Go back and add a word after the name, or add them anyway.', ok:'Add anyway' })) { input.focus(); return; }
-  const r = await run(() => Repo.saveStudent({ name, yearGroup:fs.draft.yearGroup ? Number(fs.draft.yearGroup) : null, contact:'' }));
+  const r = await run(() => Repo.saveStudent({ name, system:fs.draft.examBoard || 'UK', yearGroup:fs.draft.yearGroup ? Number(fs.draft.yearGroup) : null, contact:'' }));
   if (!r.ok) return;
   input.value = ''; $('#cf-new').hidden = true; showNewDup('');
   pickStudent(r.value);
@@ -3446,7 +3481,8 @@ function passwordsHTML() {
 }
 function studentsTabHTML() {
   const today = bkkNow().date;
-  const list = Repo.students().sort((a, b) => (b.active !== false) - (a.active !== false) || (a.yearGroup || 99) - (b.yearGroup || 99) || a.name.localeCompare(b.name));
+  const list = Repo.students().sort((a, b) => (b.active !== false) - (a.active !== false) || BOARDS.indexOf(stuSystem(a)) - BOARDS.indexOf(stuSystem(b)) || (a.yearGroup || 99) - (b.yearGroup || 99) || a.name.localeCompare(b.name));
+  const sysOpts = cur => BOARDS.map(b => `<option value="${b}" ${b === cur ? 'selected' : ''}>${b}</option>`).join('');
   const upcoming = id => Repo.classes().filter(c => c.date >= today && c.studentIds.includes(id)).length;
   const missing = list.filter(s => s.active !== false && !s.color).length;
   return `<div class="stu-tools">
@@ -3456,18 +3492,20 @@ function studentsTabHTML() {
     </div>
     <form class="add-row" data-form="add-student">
       <input id="ns-name" name="name" type="text" placeholder="Student name" aria-label="Student name" aria-describedby="ns-dup">
-      <select name="yearGroup" aria-label="Year group"><option value="">Year not set</option>${YEARS.map(y => `<option value="${y}">Year ${y}</option>`).join('')}</select>
+      <select id="ns-system" name="system" data-change="ns-system" aria-label="System">${sysOpts(ui.nsSystem || 'UK')}</select>
+      <select id="ns-year" name="yearGroup" aria-label="Year group">${yearOptions(ui.nsSystem || 'UK', null).replace('>Not set<', '>Year group<')}</select>
       <input name="contact" type="text" placeholder="LINE ID, phone or parent contact" aria-label="Contact">
       <button type="submit" class="btn btn-primary">${icon('plus')}Add student</button>
     </form>
     <p class="dup-note" id="ns-dup" role="status" hidden></p>
-    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>Year</th><th>Contact</th><th>Special price per hour</th><th>Upcoming</th><th>Active</th></tr></thead><tbody>
+    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>System</th><th>Year group</th><th>Contact</th><th>Special price per hour</th><th>Upcoming</th><th>Active</th></tr></thead><tbody>
     ${list.map(s => `<tr class="${s.active === false ? 'archived' : ''}" data-name="${esc(s.name.toLowerCase())}" ${matchesStu(s) ? '' : 'hidden'}>
       <td><button type="button" class="swatch-btn${s.color ? '' : ' none'}" style="--sw:${s.color || '#fff'}" data-action="pick-colour" data-id="${s.id}" aria-label="Colour for ${esc(s.name)}: ${s.color || 'none'}. Change"></button></td>
       <td><input type="text" value="${esc(s.name)}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="name" aria-label="Name"></td>
-      <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="yearGroup" aria-label="Year group of ${esc(s.name)}"><option value="" ${s.yearGroup ? '' : 'selected'}>Not set</option>${YEARS.map(y => `<option value="${y}" ${y === s.yearGroup ? 'selected' : ''}>Year ${y}</option>`).join('')}</select></td>
+      <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="system" aria-label="System of ${esc(s.name)}">${sysOpts(stuSystem(s))}</select></td>
+      <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="yearGroup" aria-label="Year group of ${esc(s.name)}">${yearOptions(stuSystem(s), s.yearGroup)}</select></td>
       <td><input type="text" value="${esc(s.contact || '')}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="contact" aria-label="Contact for ${esc(s.name)}"></td>
-      <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${s.hourlyPrice ?? ''}" placeholder="From tutor rates" data-change="entity" data-entity="student" data-id="${s.id}" data-field="hourlyPrice" aria-label="Special price per hour for ${esc(s.name)}"></span></td>
+      <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${s.hourlyPrice ?? ''}" placeholder="Usual price" data-change="entity" data-entity="student" data-id="${s.id}" data-field="hourlyPrice" aria-label="Special price per hour for ${esc(s.name)}"></span></td>
       <td>${plural(upcoming(s.id), 'class', 'classes')}</td>
       <td><input type="checkbox" ${s.active !== false ? 'checked' : ''} data-change="entity" data-entity="student" data-id="${s.id}" data-field="active" aria-label="${esc(s.name)} is active"></td>
     </tr>`).join('')}
@@ -3480,7 +3518,7 @@ function showDupHint(name) {
   const box = $('#ns-dup'); if (!box) return;
   const d = name.trim() && sameName(name);
   box.hidden = !d;
-  if (d) box.innerHTML = `${icon('alert', 'icon icon-xs')}There’s already a student called “${esc(d.name)}”${d.yearGroup ? ` (Year ${d.yearGroup})` : ''}. Add a word after the name to tell them apart, for example “${esc(d.name)} B” or “${esc(d.name)} Y${d.yearGroup || 9}”.`;
+  if (d) box.innerHTML = `${icon('alert', 'icon icon-xs')}There’s already a student called “${esc(d.name)}”${d.yearGroup ? ` (${stuYear(d)})` : ''}. Add a word after the name to tell them apart, for example “${esc(d.name)} B” or “${esc(d.name)} Y${d.yearGroup || 9}”.`;
 }
 function filterStudentRows() {
   const q = ui.stuQ.trim().toLowerCase();
@@ -3582,7 +3620,9 @@ async function onEntityChange(el) {
       toast(`${before.name} is inactive${before.linkedUid ? ' and their account is unlinked' : ''}.${n ? ` Reassign their ${plural(n, 'upcoming class', 'upcoming classes')}.` : ''}`);
     }
   } else {
-    const r = await run(() => Repo.saveStudent({ id, [field]:v }));
+    const patch = { [field]:v };
+    if (field === 'system') { const s = Repo.student(id); if (s?.yearGroup && !yearsFor(v).includes(s.yearGroup)) patch.yearGroup = null; }   // a year that doesn't exist in the new system
+    const r = await run(() => Repo.saveStudent({ id, ...patch }));
     if (!r.ok) { renderManage(); return; }
   }
   if (el.type === 'checkbox' || el.tagName === 'SELECT') renderManage();
@@ -3774,7 +3814,8 @@ async function onFormSubmit(form) {
     if (!name) { toast('Type the student’s name first.', { tone:'warn' }); return; }
     const dup = sameName(name);
     if (dup && !await confirmDialog({ title:`There’s already a student called “${dup.name}”`, body:'Two students with the same name are easy to mix up on the calendar and on receipts. Go back and add a word after the name, or add them anyway.', ok:'Add anyway' })) { $('#ns-name')?.focus(); return; }
-    const r = await run(() => Repo.saveStudent({ name, yearGroup:fd.get('yearGroup') ? Number(fd.get('yearGroup')) : null, contact:String(fd.get('contact') || '').trim() }));
+    const system = BOARDS.includes(fd.get('system')) ? fd.get('system') : 'UK';
+    const r = await run(() => Repo.saveStudent({ name, system, yearGroup:fd.get('yearGroup') ? Number(fd.get('yearGroup')) : null, contact:String(fd.get('contact') || '').trim() }));
     if (!r.ok) return;
     renderManage(); toast(`${name} added.`); $('[data-form="add-student"] input[name=name]')?.focus();
   } else if (kind === 'settings') {
@@ -3977,6 +4018,7 @@ function onChange(e) {
     case 'rate': return onRateChange(t);
     case 'rate-field': return onRateField(t);
     case 'level-price': return onLevelPrice(t);
+    case 'ns-system': ui.nsSystem = t.value; $('#ns-year').innerHTML = yearOptions(t.value, null).replace('>Not set<', '>Year group<'); return;
     case 'access': return onAccessChange(t);
     case 'tutor-view': ui.tutorView = t.value; ui.selected.clear(); renderMain(); return;
     case 'min-gap': ui.cal.minGap = Number(t.value); saveUI(); renderMain(); return;
