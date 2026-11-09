@@ -192,6 +192,19 @@ body:not(.cloud) .cloud-only,body.cloud .local-only{display:none !important}
 .bulk-count{font-weight:700;margin-right:4px}
 .btn-onink{background:transparent;border-color:rgba(255,255,255,.45);color:#fff}
 .btn-onink:hover{border-color:#fff}
+.bulk-move{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bulk-move>span{font-size:13px;font-weight:700}
+.col-sel{margin-left:auto;margin-right:6px}
+.ev.pv{--pv:#6E5DBF;background:repeating-linear-gradient(135deg,#EEEBFA 0 6px,#F7F5FD 6px 12px);border:1px solid #CFC7EE;border-left:3px solid var(--pv);color:#3A2F78}
+.ev.pv .ev-time{opacity:.8}
+.pv-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;background:repeating-linear-gradient(135deg,#DCD5F5 0 3px,#F7F5FD 3px 6px);border:1px solid #B9AEE6;vertical-align:-2px}
+.pv-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pv-presets .tchip{min-height:30px;padding:3px 11px;font-size:13px}
+#pv-form .modal-body{display:flex;flex-direction:column;gap:14px}
+#pv-form .modal-body .hint{margin:0}
+#pv-warn:empty{display:none}
+#pv-warn .notice{margin:0}
+.checks li.warn{color:#8A5A00}
 .btn-light{background:#fff;border-color:#fff;color:var(--ink)}
 .btn-light:hover{background:#E8EDF6;border-color:#E8EDF6}
 
@@ -697,6 +710,7 @@ body.has-bulkbar .toasts{bottom:86px}
                              ccDeadline 'HH:mm' (day before the class), payTutorLateCC, defaultStudentPrice,
                              docName, docDetails (header of pay slips and receipts)
    dayNotes/{tutorId_date}   tutorId, date, text, updatedAt, updatedBy (admin writes; the tutor reads their own)
+   personal/{id}             a tutor's own time: tutorId, date, startTime, endTime, title, seriesId (the tutor or an admin writes)
    payments/{kind_ref_month} kind 'tutor' | 'student', refId, month 'YYYY-MM', at, by, byName,
                              amount, minutes (what the slip or receipt said when it was ticked)   ADMIN ONLY
 
@@ -1132,6 +1146,7 @@ const Rules = (() => {
       case 'students':   return c.isAdmin;
       case 'payments':   return c.isAdmin;
       case 'dayNotes':   return c.isAdmin || teaches(c, data);
+      case 'personal':   return c.isAdmin || teaches(c, data);
       case 'settings':   return c.isAdmin || c.isTutor;
       case 'classes':
       case 'classProgress': return c.isAdmin || teaches(c, data);
@@ -1165,6 +1180,8 @@ const Rules = (() => {
           && changedOnly(before, after, ['linkedUid']) && after.linkedUid === auth.uid;
       case 'tutorRates': case 'students': case 'settings': case 'classes': case 'payments': case 'dayNotes':
         return c.isAdmin;
+      case 'personal':   // a tutor keeps their own personal time
+        return c.isAdmin || (op === 'delete' ? teaches(c, before) : teaches(c, after) && (!before || teaches(c, before)));
       default: return false;
     }
   }
@@ -1182,7 +1199,7 @@ const Repo = (() => {
   const listeners = new Set();
   const auth = () => ui.auth;
   const write = () => { version++; if (!Cloud) Vault.save(db); };   // without Firebase: saved encrypted in this browser (see Vault)
-  const emptyDb = () => ({ schemaVersion:SCHEMA, ...Object.fromEntries([...COLLECTIONS, 'payments', 'dayNotes'].map(k => [k, {}])) });
+  const emptyDb = () => ({ schemaVersion:SCHEMA, ...Object.fromEntries([...COLLECTIONS, 'payments', 'dayNotes', 'personal'].map(k => [k, {}])) });
   const emit = () => listeners.forEach(fn => fn());
   const newId = p => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const now = () => new Date().toISOString();
@@ -1207,7 +1224,7 @@ const Repo = (() => {
   }
   /* Bring data saved by earlier versions up to date (runs on every load, changes nothing twice) */
   function upgradeStored(x) {
-    x.payments ||= {}; x.dayNotes ||= {};
+    x.payments ||= {}; x.dayNotes ||= {}; x.personal ||= {};
     keepNightOnEvening(x);
     for (const t of Object.values(x.tutors)) if (t.email === undefined) t.email = String((t.linkedUid && x.users[t.linkedUid]?.email) || '').toLowerCase();
     for (const [id, p] of Object.entries(x.classProgress)) {   // the import's "cancelled on the day" note becomes a late CC
@@ -1297,6 +1314,7 @@ const Repo = (() => {
   }
   const tutorIdOf = r => r.startsWith('tutor:') ? r.slice(6) : null;
   function notesError(err) { console.warn('Day notes unavailable:', err); ui.notesBlocked = true; emit(); }
+  function personalError(err) { console.warn('Personal time unavailable:', err); ui.personalBlocked = true; emit(); }
   function classFilters(m) {
     const range = [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]];
     return role === 'admin' ? range : [['tutorId', '==', tutorIdOf(role)], ...range];
@@ -1316,14 +1334,16 @@ const Repo = (() => {
       if (role === 'admin') {
         jobs.push(sub(`payments:${m}`, 'payments', [['month', '==', m]]).catch(() => {}));
         jobs.push(sub(`notes:${m}`, 'dayNotes', [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]], notesError).catch(() => {}));
+        if (!ui.personalBlocked) jobs.push(sub(`personal:${m}`, 'personal', [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]], personalError).catch(() => {}));
       }
     }
     if (tid && !ui.notesBlocked) jobs.push(sub('notes', 'dayNotes', [['tutorId', '==', tid]], notesError).catch(() => {}));   // once blocked, don't retry on every render
+    if (tid && !ui.personalBlocked) jobs.push(sub('personal', 'personal', [['tutorId', '==', tid]], personalError).catch(() => {}));
     return Promise.all(jobs);
   }
   async function resubscribe(next, retry = 0) {
     for (const k of [...subs.keys()]) if (k !== 'me') unsub(k);
-    loadedMonths.clear(); tutorAll = false; ui.cloudError = null; ui.notesBlocked = false;
+    loadedMonths.clear(); tutorAll = false; ui.cloudError = null; ui.notesBlocked = false; ui.personalBlocked = false;
     role = next;
     if (role === 'pending') { onStatus('ready'); return; }
     const tid = tutorIdOf(role), t = bkkNow().date, win = [-1, 0, 1].map(n => addMonths(t, n).slice(0, 7));
@@ -1458,7 +1478,7 @@ const Repo = (() => {
       for (let i = 0; i < writes.length; i += 450) { await Cloud.commit(writes.slice(i, i + 450)); onProgress?.(Math.min(i + 450, writes.length), writes.length); }
       return writes.length;
     },
-    prepare(x) { x.payments ||= {}; x.dayNotes ||= {}; upgradeStored(x); if (TIMETABLE) mergeTimetable(x); return x; },
+    prepare(x) { x.payments ||= {}; x.dayNotes ||= {}; x.personal ||= {}; upgradeStored(x); if (TIMETABLE) mergeTimetable(x); return x; },
     /* Admin: a profile for an account just made in Firebase Authentication */
     addProfile(uid, { email, displayName, access }) {
       const r = access.startsWith('tutor:') ? 'tutor' : access, tutorId = r === 'tutor' ? access.slice(6) : null, t = now(), ops = [];
@@ -1489,6 +1509,11 @@ const Repo = (() => {
     rates: () => Object.fromEntries(list('tutorRates').map(r => [r.id, r.hourlyRate])),
     rateTable: () => Object.fromEntries(list('tutorRates').map(r => [r.id, r])),
     dayNote: (tutorId, date) => list('dayNotes').find(n => n.id === `${tutorId}_${date}`)?.text || '',
+    personal: () => list('personal'),
+    savePersonal: docs => batch(docs.map(({ id, ...data }) => ({ op:'set', col:'personal', id:id || newId('pv'), data:{ ...data, updatedAt:now(), updatedBy:auth()?.uid } }))),
+    deletePersonal: ids => batch(ids.map(id => ({ op:'delete', col:'personal', id }))),
+    /* several classes' progress in one write, e.g. moving many classes at once */
+    progressMany: items => batch(items.map(x => ({ op:'update', col:'classProgress', id:x.id, patch:{ ...x.patch, updatedAt:now(), updatedBy:auth()?.uid } }))),
     students: () => list('students'),
     student: id => doc('students', id),
     classes() {   // cached per data version and signed-in account; callers must not mutate it
@@ -1641,7 +1666,7 @@ const ui = {
   cal:{ mode:'week', date:null, order:'date', minGap:60 },
   billMonth:null, billTab:'students', billQ:'', acctFocus:null, selectMode:false, selected:new Set(), showAllDone:false, stuQ:'', popFor:null,
   openClassId:null, drawerEnter:false, msgKind:'reminder', msgDraft:null,
-  dragging:null, tgKey:null, manageTab:'tutors', confirmResolve:null, lastScreen:'', calTutors:[], notesBlocked:false,
+  dragging:null, tgKey:null, manageTab:'tutors', confirmResolve:null, lastScreen:'', calTutors:[], notesBlocked:false, personalBlocked:false,
 };
 function loadUI() { try { const x = JSON.parse(localStorage.getItem(UI_KEY) || '{}'); if (x.view) ui.view = x.view; if (x.calMode) ui.cal.mode = x.calMode; if (x.calOrder) ui.cal.order = x.calOrder; if ([30, 60, 90, 120].includes(x.minGap)) ui.cal.minGap = x.minGap; if (Array.isArray(x.calTutors)) ui.calTutors = x.calTutors.filter(v => typeof v === 'string'); } catch {} }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view:ui.view, calMode:ui.cal.mode, calOrder:ui.cal.order, minGap:ui.cal.minGap, calTutors:ui.calTutors || [] })); } catch {} }
@@ -1790,6 +1815,8 @@ function findConflicts(d, exclude = []) {
   }
   return out;
 }
+/* the tutor's personal time that overlaps (a warning: the office can still book the class) */
+const personalClashes = d => Repo.personal().filter(p => p.tutorId === d.tutorId && p.date === d.date && overlaps(toMin(d.startTime), toMin(d.endTime), toMin(p.startTime), toMin(p.endTime)));
 function describeConflict(x) {
   const when = `${hm(x.cls.startTime)}–${hm(x.cls.endTime)}`;
   if (x.kind === 'tutor') return `${classTutor(x.cls)} is teaching “${x.cls.title}” ${when}`;
@@ -1811,7 +1838,8 @@ function suggestStarts(d, exclude, dur) {
   const busy = Repo.classes().filter(c => c.date === d.date && !exclude.includes(c.id) && !isCancelled(c) && (
     c.tutorId === d.tutorId || c.studentIds.some(s => d.studentIds.includes(s) && !ccOf(c, s)) ||
     (d.mode === 'in_person' && c.mode === 'in_person' && sameRoom(d.room, c.room))
-  )).map(c => ({ s:toMin(c.startTime), e:toMin(c.endTime) }));
+  )).map(c => ({ s:toMin(c.startTime), e:toMin(c.endTime) }))
+    .concat(Repo.personal().filter(p => p.tutorId === d.tutorId && p.date === d.date).map(pvItem));
   const out = [];
   for (const f of freeIntervals(busy, from, to, dur)) for (let t = Math.ceil(f.s / 30) * 30; t + dur <= f.e; t += 30) out.push(t);
   return out.slice(0, 28);
@@ -2133,7 +2161,7 @@ function boardHTML() {
     <select id="f-qual" data-filter="qual" aria-label="Filter by qualification">${opt('all', 'All qualifications', f.qual)}${BOARDS.map(b => `<optgroup label="${b}">${QUALS.filter(q => q.board === b).map(q => opt(q.id, q.label, f.qual)).join('')}</optgroup>`).join('')}${opt('none', 'Level not set', f.qual)}</select>
     <select id="f-range" data-filter="range" aria-label="Filter by date" ${f.attention ? 'disabled title="Showing every class that needs attention, on any date"' : ''}>${f.attention ? '<option selected>Any date</option>' : ''}${opt('today', 'Today', range)}${opt('week', 'This week', range)}<optgroup label="Month">${months.map(m => opt('m:' + m, monthName(m) + (m === thisMonth ? ' (this month)' : ''), range)).join('')}</optgroup></select>
     <label class="check-inline"><input type="checkbox" id="f-att" data-filter="attention" ${f.attention ? 'checked' : ''}>Needs attention only</label>
-    ${can('assign') ? `<span class="spacer"></span><button type="button" class="btn" id="select-mode" data-action="select-mode" aria-pressed="${ui.selectMode}">${icon('check')}Select classes</button>` : ''}
+    ${can('assign') || myTutorId() ? `<span class="spacer"></span><button type="button" class="btn" id="select-mode" data-action="select-mode" aria-pressed="${ui.selectMode}">${icon('check')}Select classes</button>` : ''}
   </div>`;
   const cols = STATUSES.map(st => {
     const items = list.filter(c => c.status === st.id).sort(st.id === 'completed' ? (a, b) => byStart(b, a) : byStart);
@@ -2142,7 +2170,7 @@ function boardHTML() {
     const shown = capped && !ui.showAllDone ? items.slice(0, LIMIT) : items;
     const more = capped ? `<button type="button" class="btn btn-sm btn-quiet" data-action="show-all-done">${ui.showAllDone ? 'Show only the latest 20' : `Show ${items.length - LIMIT} older classes`}</button>` : '';
     return `<section class="col" data-status="${st.id}" aria-labelledby="col-${st.id}">
-      <header class="col-head"><h2 id="col-${st.id}">${st.label}</h2><span class="count-pill">${items.length}</span></header>
+      <header class="col-head"><h2 id="col-${st.id}">${st.label}</h2>${ui.selectMode && items.length ? `<button type="button" class="btn btn-sm btn-quiet col-sel" data-action="select-col" data-status="${st.id}">Select all</button>` : ''}<span class="count-pill">${items.length}</span></header>
       <div class="col-body">${items.length ? shown.map(cardHTML).join('') + more : `<div class="col-empty">${empty}</div>`}</div>
     </section>`;
   }).join('');
@@ -2150,13 +2178,14 @@ function boardHTML() {
 }
 function bulkBarHTML(list) {
   const n = ui.selected.size;
-  return `<div class="bulkbar" role="region" aria-label="Bulk assign">
-    <span class="bulk-count">${n ? `${plural(n, 'class', 'classes')} selected` : 'Click cards to select them'}</span>
-    <button type="button" class="btn btn-sm btn-onink" data-action="select-all" ${list.length ? '' : 'disabled'}>Select all ${list.length} results</button>
+  return `<div class="bulkbar" role="region" aria-label="Selected classes">
+    <span class="bulk-count">${n ? `${plural(n, 'class', 'classes')} selected` : 'Tap cards to select them'}</span>
+    <button type="button" class="btn btn-sm btn-onink" data-action="select-all" ${list.length ? '' : 'disabled'}>Select all ${list.length}</button>
     ${n ? '<button type="button" class="btn btn-sm btn-onink" data-action="select-clear">Clear</button>' : ''}
     <span class="spacer"></span>
-    <label class="view-as" style="color:#fff" for="bulk-tutor">Assign to<select id="bulk-tutor"><option value="">Choose a tutor</option>${activeTutors().map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
-    <button type="button" class="btn btn-sm btn-light" data-action="bulk-assign" ${n ? '' : 'disabled'}>Assign</button>
+    <span class="bulk-move"><span>Move to</span>${STATUSES.map(st => `<button type="button" class="btn btn-sm btn-light" data-action="bulk-move" data-status="${st.id}" ${n ? '' : 'disabled'}>${st.label}</button>`).join('')}</span>
+    ${can('assign') ? `<label class="view-as" style="color:#fff" for="bulk-tutor">Assign to<select id="bulk-tutor"><option value="">Choose a tutor</option>${activeTutors().map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+    <button type="button" class="btn btn-sm btn-light" data-action="bulk-assign" ${n ? '' : 'disabled'}>Assign</button>` : ''}
     <button type="button" class="btn btn-sm btn-onink" data-action="select-mode">Done</button>
   </div>`;
 }
@@ -2224,6 +2253,16 @@ function cardHTML(c) {
 const calSel = () => (ui.calTutors || []).filter(id => Repo.tutor(id));
 const calShows = id => { const sel = calSel(); return !sel.length || sel.includes(id); };
 const calClasses = () => Repo.classes().filter(c => !can('assign') || calShows(c.tutorId));
+/* A tutor's own time (meeting, sport, errands). Tutors see and edit their own; the office sees everyone's. */
+const calPersonal = () => Repo.personal().filter(p => can('assign') ? calShows(p.tutorId) : p.tutorId === myTutorId());
+const canPersonal = () => isAdmin() || !!myTutorId();
+const pvItem = p => ({ p, s:toMin(p.startTime), e:toMin(p.endTime) });
+function pvHTML(x, rs, ppm = PPM, compact = false, showTutor = false) {
+  const p = x.p, w = 100 / x.n, gap = compact ? 2 : 3, top = (x.s - rs) * ppm, h = Math.max(compact ? 16 : 24, (x.e - x.s) * ppm - (compact ? 1 : 2));
+  const when = `${hm(p.startTime)}–${hm(p.endTime)}`;
+  return `<button type="button" class="ev pv${compact ? ' mg-ev' : ''}" style="top:${top}px;height:${h}px;left:calc(${x.lane * w}% + ${gap}px);width:calc(${w}% - ${gap * 2}px)" data-action="open-pv" data-id="${esc(p.id)}" title="${esc(`${p.title}, ${when} (personal time${showTutor ? `, ${tutorName(p.tutorId)}` : ''})`)}">
+    <span class="ev-time">${when}</span><strong>${esc(p.title)}</strong>${compact ? '' : `<span class="ev-sub">Personal${showTutor ? `, ${esc(tutorName(p.tutorId))}` : ''}</span>`}</button>`;
+}
 const TUTOR_HUES = ['#2563EB', '#D97706', '#059669', '#DB2777', '#7C3AED', '#0891B2', '#DC2626', '#65A30D', '#9333EA', '#EA580C', '#0D9488', '#4F46E5'];
 function tutorHue(id) { const ids = Repo.tutors().map(t => t.id).sort(); const i = ids.indexOf(id); return TUTOR_HUES[(i < 0 ? 0 : i) % TUTOR_HUES.length]; }
 const shortTutor = name => String(name || '').replace(/^(kru|khru|teacher|t\.|ครู)\s*/i, '') || name;
@@ -2244,7 +2283,7 @@ function calendarHTML() {
     : c.mode === 'week' ? `${fmtD(ws, { day:'numeric', month:'short' })} – ${fmtD(we, { day:'numeric', month:'short', year:'numeric' })}`
     : fmtD(c.date, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const admin = can('class.create'), md = c.mode === 'month' ? monthData() : null;
-  const hint = admin ? (c.mode === 'day' ? 'Click a free slot to add a class' : c.mode === 'week' ? 'Click an empty time to add a class' : 'Click a free gap to add a class, a date to open that day. Notes for each day are at the bottom') : 'Showing your classes';
+  const hint = admin ? (c.mode === 'day' ? 'Click a free slot to add a class' : c.mode === 'week' ? 'Click an empty time to add a class' : 'Click a free gap to add a class, a date to open that day. Notes for each day are at the bottom') : 'Showing your classes. Click an empty time to add personal time, like a meeting or sport';
   return `<div class="cal-wrap">
     <div class="cal-toolbar">
       <div class="seg" role="group" aria-label="Calendar view">${['month', 'week', 'day'].map(m => `<button type="button" data-action="cal-mode" data-mode="${m}" aria-pressed="${c.mode === m}">${cap(m)}</button>`).join('')}</div>
@@ -2254,10 +2293,11 @@ function calendarHTML() {
         <button type="button" class="btn btn-sm" data-action="cal-nav" data-dir="1" aria-label="Next ${c.mode}">${icon('right')}</button>
       </div>
       <h2 class="cal-title">${title}</h2>
+      ${canPersonal() ? `<span class="spacer"></span><button type="button" class="btn btn-sm" data-action="new-pv">${icon('plus')}Personal time</button>` : ''}
     </div>
     ${calTutorPicker()}
     ${md ? monthBarHTML(md) : ''}
-    <div class="legend"><span>Colour shows the student</span><span><i style="background:${NO_COLOUR}"></i>No colour set</span>${can('manage') ? '<button type="button" class="btn btn-sm" data-action="manage" data-tab="students">Set student colours</button>' : ''}${c.mode !== 'week' ? `<span><i class="free-swatch"></i>${md ? `Free for ${fmtDur(c.minGap)} or more` : 'Free'}</span>` : ''}<span class="hint">${hint}</span></div>
+    <div class="legend"><span>Colour shows the student</span><span><i style="background:${NO_COLOUR}"></i>No colour set</span>${can('manage') ? '<button type="button" class="btn btn-sm" data-action="manage" data-tab="students">Set student colours</button>' : ''}${c.mode !== 'week' ? `<span><i class="free-swatch"></i>${md ? `Free for ${fmtDur(c.minGap)} or more` : 'Free'}</span>` : ''}<span><i class="pv-swatch"></i>Personal time</span><span class="hint">${hint}</span></div>
     ${calJumpHTML(c.mode === 'month' ? [monthStart(c.date), addDays(addMonths(c.date, 1), -1)] : c.mode === 'week' ? [ws, we] : [c.date, c.date])}
     ${md ? monthGridHTML(md) : c.mode === 'week' ? weekHTML() : dayHTML()}
   </div>`;
@@ -2285,16 +2325,18 @@ function monthData() {
     for (const c of list) if (!tutors.some(t => t.id === c.tutorId)) tutors.push({ id:c.tutorId, name:classTutor(c) });
   } else tutors = [{ id:myTutorId(), name:myName() }];
   const byKey = groupBy(list, c => `${c.date}|${c.tutorId}`);
+  const pvList = calPersonal().filter(p => p.date >= first && p.date <= last), byPv = groupBy(pvList, p => `${p.date}|${p.tutorId}`);
   const order = ui.cal.order === 'weekday' ? [...days].sort((a, b) => weekdayIdx(a) - weekdayIdx(b) || a.localeCompare(b)) : days;
   const cols = [], clashes = [];
   for (const d of order) tutors.forEach((t, i) => {
     const all = (byKey[`${d}|${t.id}`] || []).map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) }));
-    const items = layoutLanes(all.filter(x => !isCancelled(x.c))), ghosts = all.filter(x => isCancelled(x.c));
-    const clash = items.some(x => x.n > 1);
+    const live = all.filter(x => !isCancelled(x.c)), ghosts = all.filter(x => isCancelled(x.c));
+    const clash = layoutLanes(live.map(x => ({ ...x }))).some(x => x.n > 1);   // classes overlapping classes
+    const items = layoutLanes([...live, ...(byPv[`${d}|${t.id}`] || []).map(pvItem)]);
     if (clash) clashes.push({ date:d, tutor:t });
     cols.push({ date:d, tutor:t, items, ghosts, clash, first:i === 0 });
   });
-  const [rs, re] = timeRange(list);
+  const [rs, re] = timeRange([...list, ...pvList]);
   return { list, tutors, cols, clashes, rs, re, admin, multi:tutors.length > 1 };
 }
 function monthBarHTML(md) {
@@ -2334,9 +2376,11 @@ function monthGridHTML(md) {
         const end = f.s + Math.min(len, Math.max(60, minGap));
         return `<button type="button" class="free mg-free" style="${style}" data-action="new-class" data-date="${d}" data-start="${fromMin(f.s)}" data-end="${fromMin(end)}" data-tutor="${t.id}" title="${tip}. Click to add a class." aria-label="Add a class for ${esc(t.name)} on ${fmtD(d, { weekday:'short', day:'numeric', month:'short' })}, free ${hm(fromMin(f.s))} to ${hm(fromMin(f.e))}">${label}</button>`;
       }
+      if (canPersonal() && !past) return `<button type="button" class="free mg-free" style="${style}" data-action="new-pv" data-date="${d}" data-start="${fromMin(f.s)}" data-end="${fromMin(f.s + Math.min(len, 60))}" data-tutor="${t.id}" title="${tip}. Click to add personal time.">${label}</button>`;
       return `<div class="free mg-free${past ? ' past' : ''}" style="${style}" title="${tip}">${label}</div>`;
     }).join('');
     const evs = c.items.map(x => {
+      if (x.p) return pvHTML(x, rs, MPPM, true, true);
       const cl = x.c, lvl = worstLevel(classAlerts(cl)), time = `${hm(cl.startTime)}–${hm(cl.endTime)}`, w = 100 / x.n;
       const names = cl.studentIds.map(sid => studentName(cl, sid)).join(', '), sub = [cl.subject, qual(cl.qualification).id ? qual(cl.qualification).label : ''].filter(Boolean).join(', ');
       return `<button type="button" class="ev mg-ev${cl.status === 'completed' ? ' done' : ''}${x.n > 1 ? ' clash' : ''}" style="${colourVars(cl)};top:${y(x.s)}px;height:${Math.max(16, y(x.e) - y(x.s) - 1)}px;left:calc(${x.lane * w}% + 2px);width:calc(${w}% - 4px)" data-action="open-class" data-id="${cl.id}" title="${esc(`${time} ${cl.title}, ${courseLabel(cl)} (${classTutor(cl)})${names ? `: ${names}` : ''}${x.n > 1 ? '. Overlaps another class.' : ''}`)}" aria-label="${esc(`${cl.title}, ${time}`)}">${lvl ? `<span class="flag ${lvl}"></span>` : ''}<span class="ev-time">${time}</span><strong>${esc(cl.title)}</strong>${sub ? `<span class="ev-sub">${esc(sub)}</span>` : ''}</button>`;
@@ -2403,13 +2447,14 @@ function eventHTML(x, rs, hideTutor) {
 }
 function weekHTML() {
   const ws = weekStart(ui.cal.date), days = Array.from({ length:7 }, (_, i) => addDays(ws, i));
-  const list = calClasses().filter(c => c.date >= days[0] && c.date <= days[6]);
-  const [rs, re] = timeRange(list), now = bkkNow(), admin = can('class.create');
+  const list = calClasses().filter(c => c.date >= days[0] && c.date <= days[6]), pvs = calPersonal().filter(p => p.date >= days[0] && p.date <= days[6]);
+  const [rs, re] = timeRange([...list, ...pvs]), now = bkkNow(), admin = can('class.create'), slot = admin || canPersonal();
   const heads = days.map(d => `<button type="button" class="tg-head${d === now.date ? ' today' : ''}" data-action="cal-goto-day" data-date="${d}" aria-label="Open ${fmtD(d, { weekday:'long', day:'numeric', month:'long' })}">${fmtD(d, { weekday:'short' })}<strong>${Number(d.slice(8))}</strong></button>`).join('');
   const cols = days.map(d => {
-    const evs = layoutLanes(list.filter(c => c.date === d).map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) })));
-    return `<div class="tg-col${d === now.date ? ' today' : ''}${admin ? ' can-add' : ''}" ${admin ? `data-action="cal-slot" data-date="${d}" data-rs="${rs}"` : ''} style="height:${(re - rs) * PPM}px">
-      ${evs.map(x => eventHTML(x, rs, !can('assign') || calSel().length === 1)).join('')}
+    const evs = layoutLanes([...list.filter(c => c.date === d).map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) })), ...pvs.filter(p => p.date === d).map(pvItem)]);
+    const one = !can('assign') || calSel().length === 1;
+    return `<div class="tg-col${d === now.date ? ' today' : ''}${slot ? ' can-add' : ''}" ${slot ? `data-action="cal-slot" data-date="${d}" data-rs="${rs}"` : ''} style="height:${(re - rs) * PPM}px">
+      ${evs.map(x => x.p ? pvHTML(x, rs, PPM, false, !one) : eventHTML(x, rs, one)).join('')}
       ${d === now.date && now.min >= rs && now.min <= re ? `<div class="nowline" style="top:${(now.min - rs) * PPM}px"></div>` : ''}
     </div>`;
   }).join('');
@@ -2417,7 +2462,7 @@ function weekHTML() {
 }
 function dayHTML() {
   const d = ui.cal.date, now = bkkNow(), admin = can('class.create'), st = Repo.settings();
-  const dayList = calClasses().filter(c => c.date === d);
+  const dayList = calClasses().filter(c => c.date === d), dayPv = calPersonal().filter(p => p.date === d);
   let tutors;
   if (admin) {
     tutors = activeTutors().filter(t => calShows(t.id));
@@ -2426,30 +2471,31 @@ function dayHTML() {
     tutors = [{ id:myTutorId(), name:myName() }];
   }
   if (!tutors.length) return `<div class="cal-empty">No tutors yet. Add tutors under Manage, then their free time shows here.</div>`;
-  const [rs, re] = timeRange(dayList);
+  const [rs, re] = timeRange([...dayList, ...dayPv]);
   const open = toMin(st.dayStart), close = toMin(st.dayEnd);
   const past = d < now.date;
   const from = d === now.date ? Math.max(open, Math.ceil(now.min / 15) * 15) : open;
   const per = tutors.map(t => {
-    const mine = dayList.filter(c => c.tutorId === t.id);
-    const free = past ? [] : freeIntervals(mine.filter(c => !isCancelled(c)).map(c => ({ s:toMin(c.startTime), e:toMin(c.endTime) })), from, close, 30);
-    return { t, mine, free };
+    const mine = dayList.filter(c => c.tutorId === t.id), pv = dayPv.filter(p => p.tutorId === t.id);
+    const free = past ? [] : freeIntervals([...mine.filter(c => !isCancelled(c)).map(c => ({ s:toMin(c.startTime), e:toMin(c.endTime) })), ...pv.map(pvItem)], from, close, 30);
+    return { t, mine, pv, free };
   });
   const heads = per.map(({ t, mine, free }) => {
     const freeMin = free.reduce((a, f) => a + f.e - f.s, 0);
     return `<div class="tg-head tg-person" style="--tc:${tutorHue(t.id)}"><strong>${esc(t.name)}</strong><span>${plural(mine.length, 'class', 'classes')}${past ? '' : `, ${freeMin ? fmtDur(freeMin) + ' free' : 'fully booked'}`}</span></div>`;
   }).join('');
-  const cols = per.map(({ t, mine, free }) => {
-    const evs = layoutLanes(mine.map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) })));
+  const cols = per.map(({ t, mine, pv, free }) => {
+    const evs = layoutLanes([...mine.map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) })), ...pv.map(pvItem)]);
     const frees = free.map(f => {
       const style = `top:${(f.s - rs) * PPM + 2}px;height:${(f.e - f.s) * PPM - 4}px`;
       const label = `<strong>Free ${fromMin(f.s)}–${fromMin(f.e)}</strong>`;
       return admin
         ? `<button type="button" class="free" style="${style}" data-action="new-class" data-date="${d}" data-start="${fromMin(f.s)}" data-end="${fromMin(Math.min(f.e, f.s + 90))}" data-tutor="${t.id}" aria-label="Add a class for ${esc(t.name)}, free ${fromMin(f.s)} to ${fromMin(f.e)}">${label}${(f.e - f.s) >= 45 ? '<span class="free-add">+ Add class</span>' : ''}</button>`
+        : canPersonal() ? `<button type="button" class="free" style="${style}" data-action="new-pv" data-date="${d}" data-start="${fromMin(f.s)}" data-end="${fromMin(Math.min(f.e, f.s + 60))}" data-tutor="${t.id}" aria-label="Add personal time, free ${fromMin(f.s)} to ${fromMin(f.e)}">${label}${(f.e - f.s) >= 45 ? '<span class="free-add">+ Personal time</span>' : ''}</button>`
         : `<div class="free" style="${style}">${label}</div>`;
     }).join('');
     return `<div class="tg-col${d === now.date ? ' today' : ''}" style="height:${(re - rs) * PPM}px">
-      ${frees}${evs.map(x => eventHTML(x, rs, true)).join('')}
+      ${frees}${evs.map(x => x.p ? pvHTML(x, rs) : eventHTML(x, rs, true)).join('')}
       ${d === now.date && now.min >= rs && now.min <= re ? `<div class="nowline" style="top:${(now.min - rs) * PPM}px"></div>` : ''}
     </div>`;
   }).join('');
@@ -3000,13 +3046,29 @@ function buildMessage(c, kind) {
 /* Each status change is logged with who made it (kept on the class, last 20). Until the updated
    firestore.rules are published a tutor's change is saved without the log entry. */
 const logEntry = extra => ({ ...extra, by:ui.auth.uid, byName:myName() || '', at:new Date().toISOString() });
-async function saveStatus(id, status, prev) {
-  const c = Repo.getClass(id), statusLog = [...(c?.statusLog || []), logEntry({ from:prev, to:status })].slice(-20);
+async function saveStatuses(items) {   // items: [{ id, status, prev }]
+  const logged = items.map(x => { const c = Repo.getClass(x.id); return { id:x.id, patch:{ status:x.status, statusLog:[...(c?.statusLog || []), logEntry({ from:x.prev, to:x.status })].slice(-20) } }; });
   if (!ui.statusLogBlocked) {
-    try { await Repo.updateProgress(id, { status, statusLog }); return { ok:true }; }
+    try { await Repo.progressMany(logged); return { ok:true }; }
     catch (e) { if (!(e?.code === 'permission-denied' && !isAdmin())) return run(() => { throw e; }); ui.statusLogBlocked = true; }
   }
-  return run(() => Repo.updateProgress(id, { status }));
+  return run(() => Repo.progressMany(items.map(x => ({ id:x.id, patch:{ status:x.status } }))));
+}
+const saveStatus = (id, status, prev) => saveStatuses([{ id, status, prev }]);
+/* Board: move every selected class at once (a tutor can move their own) */
+async function bulkMove(status) {
+  const label = STATUSES.find(x => x.id === status).label;
+  const list = [...ui.selected].map(id => Repo.getClass(id)).filter(c => c && can('class.move', c));
+  const todo = list.filter(c => c.status !== status).sort(byStart);
+  if (!todo.length) { toast(list.length ? `Those classes are already in ${label}.` : 'Select some classes first.', { tone:'warn' }); return; }
+  const names = todo.slice(0, 4).map(c => `${fmtD(c.date, { day:'numeric', month:'short' })} ${hm(c.startTime)} ${c.title}`).join('; ');
+  const ok = await confirmDialog({ title:`Move ${plural(todo.length, 'class', 'classes')} to ${label}?`, body:`${names}${todo.length > 4 ? `; and ${todo.length - 4} more` : ''}. Each class records that you moved it.`, ok:`Move to ${label}` });
+  if (!ok) return;
+  const back = todo.map(c => ({ id:c.id, status:c.status, prev:status }));
+  const r = await saveStatuses(todo.map(c => ({ id:c.id, status, prev:c.status })));
+  if (!r.ok) return;
+  ui.selected.clear(); ui.selectMode = false; renderMain();
+  toast(`${plural(todo.length, 'class', 'classes')} moved to ${label}.`, { action:{ label:'Undo', fn:() => saveStatuses(back) } });
 }
 const ccLogWith = (c, entry) => ({ ccLog:[...(c.ccLog || []), logEntry(entry)].slice(-30) });
 async function moveClass(id, status) {
@@ -3106,6 +3168,81 @@ async function bulkAssign() {
   toast(`${plural(move.length, 'class', 'classes')} assigned to ${name}.${skip.length ? ` ${skip.length} skipped.` : ''}`, { action:{ label:'Undo', fn:() => run(() => Repo.assignTutors(undo)) } });
 }
 
+/* ---------- Personal time (a tutor's own meetings, sport, errands) ---------- */
+let ps = null;
+const PV_PRESETS = ['Meeting', 'Badminton', 'Exercise', 'Shopping', 'Doctor', 'Personal'];
+function openPersonalForm(existing, prefill = {}) {
+  if (!canPersonal()) return;
+  const admin = isAdmin(), tid = existing?.tutorId || prefill.tutorId || (admin ? (calSel().length === 1 ? calSel()[0] : '') : myTutorId());
+  if (existing && !admin && existing.tutorId !== myTutorId()) return;
+  const start = existing?.startTime || prefill.startTime || '18:00';
+  ps = { id:existing?.id || null, seriesId:existing?.seriesId || null, d:{ title:existing?.title || '', tutorId:admin ? tid : myTutorId(), date:existing?.date || prefill.date || (ui.cal.date >= bkkNow().date ? ui.cal.date : bkkNow().date), startTime:start, endTime:existing?.endTime || prefill.endTime || fromMin(Math.min(toMin(start) + 60, LAST_SLOT)) } };
+  $('#modal-root').innerHTML = personalFormHTML();
+  document.body.classList.add('no-scroll');
+  renderPvWarn(); $('#pv-title').focus();
+}
+function personalFormHTML() {
+  const d = ps.d, admin = isAdmin(), edit = !!ps.id;
+  const later = ps.seriesId ? Repo.personal().filter(p => p.seriesId === ps.seriesId && p.date >= d.date).length : 0;
+  return `<div class="modal-back" data-action="modal-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pv-heading">
+  <form id="pv-form" data-form="personal" novalidate autocomplete="off">
+    <div class="modal-head"><h2 id="pv-heading">${edit ? 'Personal time' : 'Add personal time'}</h2><button type="button" class="btn btn-ghost" data-action="modal-close" aria-label="Close">${icon('x')}</button></div>
+    <div class="modal-body">
+      <div class="field"><label for="pv-title">What</label><input id="pv-title" name="title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="e.g. Meeting, Badminton">
+        <div class="pv-presets">${PV_PRESETS.map(t => `<button type="button" class="tchip all" data-action="pv-preset" data-title="${t}">${t}</button>`).join('')}</div></div>
+      ${admin ? `<div class="field"><label for="pv-tutor">Tutor</label><select id="pv-tutor" name="tutorId"><option value="">Choose a tutor</option>${activeTutors().map(t => `<option value="${t.id}" ${t.id === d.tutorId ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></div>` : ''}
+      <div class="grid g3">
+        <div class="field"><label for="pv-date">Date</label><input id="pv-date" name="date" type="date" value="${esc(d.date)}"></div>
+        <div class="field"><label for="pv-start">Starts</label><select id="pv-start" name="startTime">${timeOptions(d.startTime)}</select></div>
+        <div class="field"><label for="pv-end">Ends</label><select id="pv-end" name="endTime">${timeOptions(d.endTime)}</select></div>
+      </div>
+      ${edit ? '' : `<div class="field"><label for="pv-repeat">Repeat</label><select id="pv-repeat" name="repeat">${[1, 2, 4, 8, 12].map(n => `<option value="${n}">${n === 1 ? 'Does not repeat' : `Every week, ${n} times`}</option>`).join('')}</select></div>`}
+      <div id="pv-warn" aria-live="polite"></div>
+      <p class="hint">${admin ? 'The tutor sees this on their calendar.' : 'The office sees this on the calendar, so classes aren’t booked over it.'} Free start times for new classes skip this time.</p>
+      <div class="form-error" id="pv-error" role="alert" hidden></div>
+    </div>
+    <div class="modal-foot">${edit ? `<button type="button" class="btn btn-danger" data-action="pv-delete">${icon('trash')}Delete</button>${later > 1 ? `<button type="button" class="btn btn-danger" data-action="pv-delete-series">Delete this and later repeats (${later})</button>` : ''}` : ''}
+      <span class="spacer"></span><button type="button" class="btn" data-action="modal-close">Cancel</button><button type="submit" class="btn btn-primary">${edit ? 'Save' : 'Add'}</button></div>
+  </form></div></div>`;
+}
+function readPv() {
+  const f = $('#pv-form'); if (!f) return null;
+  const v = n => f.elements[n]?.value ?? '';
+  Object.assign(ps.d, { title:v('title').trim(), date:v('date'), startTime:v('startTime'), endTime:v('endTime') });
+  if (f.elements.tutorId) ps.d.tutorId = v('tutorId');
+  return ps.d;
+}
+function renderPvWarn() {
+  const box = $('#pv-warn'); if (!box || !ps) return;
+  const d = readPv(); if (!d.tutorId || !d.date || !d.startTime || !d.endTime) { box.innerHTML = ''; return; }
+  const s = toMin(d.startTime), e = toMin(d.endTime);
+  const cls = Repo.classes().filter(c => c.tutorId === d.tutorId && c.date === d.date && !isCancelled(c) && overlaps(s, e, toMin(c.startTime), toMin(c.endTime)));
+  box.innerHTML = cls.length ? `<div class="notice warn">${icon('alert')}<span>This overlaps ${cls.length === 1 ? 'a class' : `${cls.length} classes`}: ${cls.map(c => esc(`${c.title} ${hm(c.startTime)}–${hm(c.endTime)}`)).join(', ')}. You can still save it.</span></div>` : '';
+}
+async function submitPersonal(form) {
+  const d = readPv(), box = $('#pv-error'), errs = [];
+  if (!d.title) errs.push('Write what it is, for example Meeting.');
+  if (!d.tutorId) errs.push('Choose a tutor.');
+  if (!d.date) errs.push('Pick a date.');
+  if (!(toMin(d.endTime) > toMin(d.startTime))) errs.push('The end time must be after the start time.');
+  if (errs.length) { box.innerHTML = errs.map(x => `<p>${esc(x)}</p>`).join(''); box.hidden = false; return; }
+  const repeat = ps.id ? 1 : Number(form.elements.repeat?.value) || 1, seriesId = ps.id ? ps.seriesId : repeat > 1 ? Repo.newId('pvs') : null;
+  const base = { tutorId:d.tutorId, title:d.title, startTime:d.startTime, endTime:d.endTime, seriesId, createdBy:ui.auth.uid, createdByName:myName() || '' };
+  const docs = ps.id ? [{ id:ps.id, ...base, date:d.date }] : occurrenceDates(d.date, repeat).map(date => ({ ...base, date }));
+  try { await Repo.savePersonal(docs); }
+  catch (e) { box.innerHTML = `<p>${esc(e?.code === 'permission-denied' ? 'Personal time can’t be saved until the updated Firestore rules are published. Ask the office to publish them (Firebase console → Firestore Database → Rules).' : e?.message || 'Something went wrong.')}</p>`; box.hidden = false; return; }
+  closeModal(true);
+  toast(ps?.id ? 'Personal time saved.' : repeat > 1 ? `${d.title} added for ${repeat} weeks.` : `${d.title} added to the calendar.`);
+}
+async function deletePersonal(series) {
+  if (!ps?.id) return;
+  const ids = series ? Repo.personal().filter(p => p.seriesId === ps.seriesId && p.date >= ps.d.date).map(p => p.id) : [ps.id];
+  if (!await confirmDialog({ title:series ? `Delete ${ids.length} repeats?` : 'Delete this personal time?', body:series ? 'This one and the later weeks are removed from the calendar.' : 'It’s removed from the calendar.', ok:'Delete', danger:true })) return;
+  const r = await run(() => Repo.deletePersonal(ids));
+  if (!r.ok) return;
+  closeModal(true); toast(series ? `${plural(ids.length, 'repeat')} deleted.` : 'Personal time deleted.');
+}
 /* ---------- Class form (create / edit) ---------- */
 let fs = null;
 function defaultDraft(p) {
@@ -3316,6 +3453,7 @@ function renderAvail() {
   const line = (list, ok, bad) => list.length ? list.map(x => `<li class="bad">${icon('alert')}<span>${esc(bad(x))}</span></li>`).join('') : `<li class="good">${icon('check')}<span>${esc(ok)}</span></li>`;
   let html = `${head}<p class="avail-when">${fmtD(d.date, { weekday:'short', day:'numeric', month:'short' })}, ${hm(d.startTime)}–${hm(d.endTime)} (${fmtDur(e - s)})</p><ul class="checks">`;
   html += line(first.filter(x => x.kind === 'tutor'), `${tutorName(d.tutorId)} is free`, describeConflict);
+  html += personalClashes(d).map(p => `<li class="warn">${icon('alert')}<span>${esc(`${tutorName(d.tutorId)} has personal time: ${p.title} ${hm(p.startTime)}–${hm(p.endTime)}`)}</span></li>`).join('');
   html += d.studentIds.length ? line(first.filter(x => x.kind === 'student'), d.studentIds.length === 1 ? `${studentName(d, d.studentIds[0])} is free` : `All ${d.studentIds.length} students are free`, describeConflict) : `<li class="neutral">${icon('users')}<span>No students added yet</span></li>`;
   if (d.mode === 'in_person') html += d.room ? line(first.filter(x => x.kind === 'room'), `${d.room} is free`, describeConflict) : `<li class="neutral">${icon('pin')}<span>No classroom chosen</span></li>`;
   html += '</ul>';
@@ -3382,7 +3520,7 @@ async function closeModal(force = false) {
     const ok = await confirmDialog({ title:'Discard this class?', body:'Your changes haven’t been saved.', ok:'Discard', danger:true });
     if (!ok) return;
   }
-  $('#modal-root').innerHTML = ''; fs = null; closePop();
+  $('#modal-root').innerHTML = ''; fs = null; ps = null; closePop();
   if (!ui.openClassId) document.body.classList.remove('no-scroll');
 }
 
@@ -3740,6 +3878,7 @@ async function onAccessChange(el) {
 }
 async function onFormSubmit(form) {
   const fd = new FormData(form), kind = form.dataset.form;
+  if (kind === 'personal') return submitPersonal(form);
   const busy = (id, label) => { const b = document.getElementById(id); if (b) { b.disabled = true; b.textContent = label; } };
   if (kind === 'cloud-sign-in') {
     const email = String(fd.get('email') || '').trim().toLowerCase(), pw = String(fd.get('password') || '');
@@ -3996,6 +4135,8 @@ const actions = {
   'select-all': () => { boardClasses().forEach(c => ui.selected.add(c.id)); renderMain(); },
   'select-clear': () => { ui.selected.clear(); renderMain(); },
   'bulk-assign': () => bulkAssign(),
+  'bulk-move': el => bulkMove(el.dataset.status),
+  'select-col': el => { boardClasses().filter(c => c.status === el.dataset.status).forEach(c => ui.selected.add(c.id)); renderMain(); },
   'cal-mode': el => { ui.cal.mode = el.dataset.mode; saveUI(); renderMain(); },
   'cal-nav': el => { const n = Number(el.dataset.dir), m = ui.cal.mode; ui.cal.date = m === 'month' ? addMonths(ui.cal.date, n) : addDays(ui.cal.date, m === 'week' ? 7 * n : n); renderMain(); },
   'rate-open': el => { ui.rateOpen ||= new Set(); const id = el.dataset.id; ui.rateOpen.has(id) ? ui.rateOpen.delete(id) : ui.rateOpen.add(id); renderManage(); $(`#modal-root [data-action="rate-open"][data-id="${CSS.escape(id)}"]`)?.focus(); },
@@ -4010,11 +4151,17 @@ const actions = {
   'cal-today': () => { ui.cal.date = bkkNow().date; ui.tgKey = null; renderMain(); },
   'cal-goto-day': el => { ui.cal.date = el.dataset.date; ui.cal.mode = 'day'; saveUI(); renderMain(); },
   'cal-slot': (el, e) => {
-    if (!can('class.create') || e.target !== el) return;
+    if (e.target !== el) return;
     const rs = Number(el.dataset.rs), y = e.clientY - el.getBoundingClientRect().top;
     const m = rs + Math.floor(y / PPM / 30) * 30;
-    openClassForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 15)), endTime:fromMin(Math.min(m + 90, LAST_SLOT)) });
+    if (can('class.create')) openClassForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 15)), endTime:fromMin(Math.min(m + 90, LAST_SLOT)) });
+    else if (canPersonal()) openPersonalForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 15)), endTime:fromMin(Math.min(m + 60, LAST_SLOT)) });
   },
+  'new-pv': el => openPersonalForm(null, { date:el.dataset.date, startTime:el.dataset.start, endTime:el.dataset.end, tutorId:el.dataset.tutor }),
+  'open-pv': el => { const p = Repo.personal().find(x => x.id === el.dataset.id); if (p) openPersonalForm(p); },
+  'pv-preset': el => { const i = $('#pv-title'); if (i) { i.value = el.dataset.title; i.focus(); renderPvWarn(); } },
+  'pv-delete': () => deletePersonal(false),
+  'pv-delete-series': () => deletePersonal(true),
   'bill-tab': el => { ui.billTab = el.dataset.tab; renderMain(); },
   'bill-export': el => exportBill(el.dataset.kind),
   'doc-open': el => openDoc(el.dataset.kind, el.dataset.id, false),
@@ -4088,6 +4235,7 @@ function onChange(e) {
   }
   if (t.dataset.filter && t.type !== 'search') { ui.filters[t.dataset.filter] = t.type === 'checkbox' ? t.checked : t.value; renderMain(); renderHeader(sessionState()); return; }
   if (t.closest('#class-form')) onFormInput(e);
+  if (t.closest('#pv-form')) renderPvWarn();
 }
 function onInput(e) {
   const t = e.target;
@@ -4102,6 +4250,7 @@ function onInput(e) {
   }
   if (t.id === 'msg-text') { ui.msgDraft = { id:t.dataset.id, kind:ui.msgKind, text:t.value }; return; }
   if (t.closest('#class-form') && t.type !== 'radio' && t.tagName !== 'SELECT') onFormInput(e);
+  if (t.closest('#pv-form')) renderPvWarn();
 }
 function onSubmit(e) { e.preventDefault(); submitForm(e.target); }
 function submitForm(f) {
@@ -4239,7 +4388,7 @@ function buildSeed() {
   return {
     schemaVersion:SCHEMA,
     settings:{ app:{ ...DEFAULT_SETTINGS } },
-    users, tutors, tutorRates, students, classes, classProgress, payments:{}, dayNotes:{}, timetable:TIMETABLE.version,
+    users, tutors, tutorRates, students, classes, classProgress, payments:{}, dayNotes:{}, personal:{}, timetable:TIMETABLE.version,
   };
 }
 

@@ -10,6 +10,7 @@ rules_version = '2';
 //   classes/{classId}  one class: the admin's plan plus `progress`, the only part
 //                      the class's tutor may change (status, attendance, notes, statusLog)
 //   dayNotes/{tutorId_date}  the admin's note for one tutor on one day (the tutor reads their own)
+//   personal/{id}      a tutor's own time on the calendar (the tutor or an admin writes)
 //   meta/public        exists once the app is set up; readable before sign-in
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -81,6 +82,14 @@ service cloud.firestore {
       // a tutor's query must ask for their own notes: where('tutorId', '==', theirId)
       allow read: if isAdmin() || (isTutor() && resource.data.tutorId == myTutorId());
       allow write: if isAdmin();
+    }
+
+    match /personal/{eventId} {
+      // a tutor's own time (meetings, sport, errands); their query must ask for where('tutorId', '==', theirId)
+      allow read: if isAdmin() || (isTutor() && resource.data.tutorId == myTutorId());
+      allow create: if isAdmin() || (isTutor() && request.resource.data.tutorId == myTutorId());
+      allow update: if isAdmin() || (isTutor() && resource.data.tutorId == myTutorId() && request.resource.data.tutorId == myTutorId());
+      allow delete: if isAdmin() || (isTutor() && resource.data.tutorId == myTutorId());
     }
 
     // statusLog: who changed a class's status. A tutor may leave it as it is, or add an entry that names themselves.
