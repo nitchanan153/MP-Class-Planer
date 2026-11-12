@@ -518,6 +518,9 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .stu-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;min-height:24px;align-items:center;font-size:13.5px}
 #cf-stu-add{font-weight:600}
 .new-stu{display:flex;gap:6px;margin-top:6px}
+.tpick{display:flex;align-items:center;gap:6px}
+.tpick select{flex:1;min-width:0;font-variant-numeric:tabular-nums}
+.tpick b{font-weight:700;color:var(--ink-2)}
 .cf-days{border:0;padding:0;margin:0}
 .cf-days legend{font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:6px;padding:0}
 .day-chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -920,15 +923,36 @@ function dayLabel(s) {
 }
 const occurrenceDates = (date, n) => Array.from({ length:n }, (_, i) => addDays(date, 7 * i));
 /* 24-hour time pickers (native time inputs show AM/PM on some browsers) */
-const LAST_SLOT = 23 * 60 + 50;
-function timeOptions(cur, step = 10, from = 6 * 60) {
+const LAST_SLOT = 23 * 60 + 55;
+function timeOptions(cur, step = 5, from = 0) {
   const set = new Set(); for (let m = from; m <= LAST_SLOT; m += step) set.add(fromMin(m));
   if (cur) set.add(cur);
   return [...set].sort().map(t => `<option value="${t}" ${t === cur ? 'selected' : ''}>${t}</option>`).join('');
 }
-function setTimeSelect(sel, value) {
-  if (![...sel.options].some(o => o.value === value)) sel.innerHTML = timeOptions(value);
-  sel.value = value;
+/* Class and personal-time forms: an hour list (00–23) and a minute list (every 5 minutes) that fill a hidden
+   input named startTime / endTime, so the rest of the form reads one "HH:MM" value. */
+function timePickHTML(id, name, value, label) {
+  const [h, m] = String(value || '09:00').split(':'), mins = new Set(Array.from({ length:12 }, (_, i) => String(i * 5).padStart(2, '0')));
+  mins.add(m);   // keep a time that isn't on the 5-minute grid
+  return `<span class="tpick"><select id="${id}-h" data-tp="${id}" aria-label="${esc(label)}, hour">${Array.from({ length:24 }, (_, i) => String(i).padStart(2, '0')).map(x => `<option value="${x}" ${x === h ? 'selected' : ''}>${x}</option>`).join('')}</select><b aria-hidden="true">:</b><select id="${id}-m" data-tp="${id}" aria-label="${esc(label)}, minutes">${[...mins].sort().map(x => `<option value="${x}" ${x === m ? 'selected' : ''}>${x}</option>`).join('')}</select><input type="hidden" id="${id}" name="${name}" value="${esc(value || '')}"></span>`;
+}
+/* a time picker's hour or minute changed: update its hidden value and return that input */
+function syncTimePick(sel) {
+  const id = sel.dataset.tp, hid = document.getElementById(id);
+  hid.value = `${document.getElementById(`${id}-h`).value}:${document.getElementById(`${id}-m`).value}`;
+  return hid;
+}
+/* set a time from code (a time picker's hidden input, or a plain time select) */
+function setTimeSelect(el, value) {
+  if (el.type === 'hidden') {
+    el.value = value;
+    const [h, m] = value.split(':'), hs = document.getElementById(`${el.id}-h`), ms = document.getElementById(`${el.id}-m`);
+    if (hs) hs.value = h;
+    if (ms) { if (![...ms.options].some(o => o.value === m)) ms.insertAdjacentHTML('beforeend', `<option value="${m}">${m}</option>`); ms.value = m; }
+    return;
+  }
+  if (![...el.options].some(o => o.value === value)) el.innerHTML = timeOptions(value);
+  el.value = value;
 }
 
 /* ==========================================================================
@@ -2377,7 +2401,7 @@ function monthGridHTML(md) {
   const tutorHeads = multi ? cols.map((c, i) => `<div class="mg-tutor${c.first && wkStart(c.date, i) ? ' wk' : c.first ? ' dstart' : ''}${c.date === now.date ? ' today' : ''}" style="--tc:${tutorHue(c.tutor.id)}" title="${esc(c.tutor.name)}">${esc(shortTutor(c.tutor.name))}</div>`).join('') : '';
   const body = cols.map((c, i) => {
     const d = c.date, t = c.tutor, isToday = d === now.date, past = d < now.date;
-    const from = isToday ? Math.max(open, Math.ceil(now.min / 10) * 10) : open;
+    const from = isToday ? Math.max(open, Math.ceil(now.min / 5) * 5) : open;
     const gaps = freeIntervals(c.items, from, close, minGap).map(f => {
       const len = f.e - f.s, style = `top:${y(f.s) + 1}px;height:${Math.max(6, y(f.e) - y(f.s) - 2)}px`;
       const range = `${hm(fromMin(f.s))}–${hm(fromMin(f.e))}`, tip = `Free ${range}`;
@@ -2486,7 +2510,7 @@ function dayHTML() {
   const [rs, re] = timeRange([...dayList, ...dayPv]);
   const open = toMin(st.dayStart), close = toMin(st.dayEnd);
   const past = d < now.date;
-  const from = d === now.date ? Math.max(open, Math.ceil(now.min / 10) * 10) : open;
+  const from = d === now.date ? Math.max(open, Math.ceil(now.min / 5) * 5) : open;
   const per = tutors.map(t => {
     const mine = dayList.filter(c => c.tutorId === t.id), pv = dayPv.filter(p => p.tutorId === t.id);
     const free = past ? [] : freeIntervals([...mine.filter(c => !isCancelled(c)).map(c => ({ s:toMin(c.startTime), e:toMin(c.endTime) })), ...pv.map(pvItem)], from, close, 30);
@@ -3204,8 +3228,8 @@ function personalFormHTML() {
         <div class="pv-presets">${PV_PRESETS.map(t => `<button type="button" class="tchip all" data-action="pv-preset" data-title="${t}">${t}</button>`).join('')}</div></div>
       <div class="grid g3">
         <div class="field"><label for="pv-date">Date</label><input id="pv-date" name="date" type="date" value="${esc(d.date)}"></div>
-        <div class="field"><label for="pv-start">Starts</label><select id="pv-start" name="startTime">${timeOptions(d.startTime)}</select></div>
-        <div class="field"><label for="pv-end">Ends</label><select id="pv-end" name="endTime">${timeOptions(d.endTime)}</select></div>
+        <div class="field"><label for="pv-start-h">Starts</label>${timePickHTML('pv-start', 'startTime', d.startTime, 'Starts')}</div>
+        <div class="field"><label for="pv-end-h">Ends</label>${timePickHTML('pv-end', 'endTime', d.endTime, 'Ends')}</div>
       </div>
       ${edit ? '' : `<div class="field"><label for="pv-repeat">Repeat</label><select id="pv-repeat" name="repeat">${[1, 2, 4, 8, 12].map(n => `<option value="${n}">${n === 1 ? 'Does not repeat' : `Every week, ${n} times`}</option>`).join('')}</select></div>`}
       <div id="pv-warn" aria-live="polite"></div>
@@ -3310,8 +3334,8 @@ function classFormHTML() {
           <p class="hint" id="cf-range"></p></fieldset>`}
         <div class="grid ${fs.isEdit ? 'g3' : 'g2'}">
           ${fs.isEdit ? `<div class="field"><label for="cf-date">Date</label><input id="cf-date" name="date" type="date" value="${esc(d.date)}"></div>` : ''}
-          <div class="field"><label for="cf-start">Starts</label><select id="cf-start" name="startTime">${timeOptions(d.startTime)}</select></div>
-          <div class="field"><label for="cf-end">Ends</label><select id="cf-end" name="endTime">${timeOptions(d.endTime)}</select></div>
+          <div class="field"><label for="cf-start-h">Starts</label>${timePickHTML('cf-start', 'startTime', d.startTime, 'Starts')}</div>
+          <div class="field"><label for="cf-end-h">Ends</label>${timePickHTML('cf-end', 'endTime', d.endTime, 'Ends')}</div>
         </div>
         <p class="hint" style="margin-top:-6px">All times are Thailand time (GMT+7).</p>
         <div class="field"><label for="cf-tutor">Tutor</label><select id="cf-tutor" name="tutorId"><option value="">Choose a tutor</option>${tutors.map(t => opt(t.id, t.name, t.id === d.tutorId)).join('')}</select></div>
@@ -4200,9 +4224,9 @@ const actions = {
   'cal-slot': (el, e) => {
     if (e.target !== el) return;
     const rs = Number(el.dataset.rs), y = e.clientY - el.getBoundingClientRect().top;
-    const m = rs + Math.floor(y / PPM / 10) * 10;   // the 10 minutes you clicked
-    if (can('class.create')) openClassForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 10)), endTime:fromMin(Math.min(m + 90, LAST_SLOT)) });
-    else if (canPersonal()) openPersonalForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 10)), endTime:fromMin(Math.min(m + 60, LAST_SLOT)) });
+    const m = rs + Math.floor(y / PPM / 5) * 5;   // the 5 minutes you clicked
+    if (can('class.create')) openClassForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 5)), endTime:fromMin(Math.min(m + 90, LAST_SLOT)) });
+    else if (canPersonal()) openPersonalForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 5)), endTime:fromMin(Math.min(m + 60, LAST_SLOT)) });
   },
   'new-pv': el => openPersonalForm(null, { date:el.dataset.date, startTime:el.dataset.start, endTime:el.dataset.end, tutorId:el.dataset.tutor }),
   'open-pv': el => { const p = Repo.personal().find(x => x.id === el.dataset.id); if (p) openPersonalForm(p); },
@@ -4260,6 +4284,12 @@ function onClick(e) {
 }
 function onChange(e) {
   const t = e.target;
+  if (t.dataset.tp) {   // hour or minute of a time picker
+    const hid = syncTimePick(t);
+    if (hid.closest('#class-form')) onFormInput({ target:hid, type:'change' });
+    if (hid.closest('#pv-form')) renderPvWarn();
+    return;
+  }
   switch (t.dataset.change) {
     case 'tick': return tick(t);
     case 'entity': return onEntityChange(t);
