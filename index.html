@@ -709,8 +709,8 @@ body.has-bulkbar .toasts{bottom:86px}
    settings/app              schoolName, timezone, dayStart, dayEnd, rooms[],
                              ccDeadline 'HH:mm' (day before the class), payTutorLateCC, defaultStudentPrice,
                              docName, docDetails (header of pay slips and receipts)
-   dayNotes/{tutorId_date}   tutorId, date, text, updatedAt, updatedBy (admin writes; the tutor reads their own)
-   personal/{id}             a tutor's own time: tutorId, date, startTime, endTime, title, seriesId (the tutor or an admin writes)
+   dayNotes/{tutorId_date}   tutorId, date, text, updatedAt, updatedBy (the office and that tutor read and write it)
+   personal/{id}             a tutor's own time: tutorId, date, startTime, endTime, title, seriesId (only that tutor reads or writes it)
    payments/{kind_ref_month} kind 'tutor' | 'student', refId, month 'YYYY-MM', at, by, byName,
                              amount, minutes (what the slip or receipt said when it was ticked)   ADMIN ONLY
 
@@ -911,8 +911,8 @@ function dayLabel(s) {
 }
 const occurrenceDates = (date, n) => Array.from({ length:n }, (_, i) => addDays(date, 7 * i));
 /* 24-hour time pickers (native time inputs show AM/PM on some browsers) */
-const LAST_SLOT = 23 * 60 + 45;
-function timeOptions(cur, step = 15, from = 6 * 60) {
+const LAST_SLOT = 23 * 60 + 50;
+function timeOptions(cur, step = 10, from = 6 * 60) {
   const set = new Set(); for (let m = from; m <= LAST_SLOT; m += step) set.add(fromMin(m));
   if (cur) set.add(cur);
   return [...set].sort().map(t => `<option value="${t}" ${t === cur ? 'selected' : ''}>${t}</option>`).join('');
@@ -1146,7 +1146,7 @@ const Rules = (() => {
       case 'students':   return c.isAdmin;
       case 'payments':   return c.isAdmin;
       case 'dayNotes':   return c.isAdmin || teaches(c, data);
-      case 'personal':   return c.isAdmin || teaches(c, data);
+      case 'personal':   return teaches(c, data);   // private to the tutor, the office doesn't see it
       case 'settings':   return c.isAdmin || c.isTutor;
       case 'classes':
       case 'classProgress': return c.isAdmin || teaches(c, data);
@@ -1178,10 +1178,12 @@ const Rules = (() => {
         if (c.isAdmin) return true;
         return op === 'update' && c.signedIn && !!before && before.linkedUid == null && !!c.email && before.email === c.email
           && changedOnly(before, after, ['linkedUid']) && after.linkedUid === auth.uid;
-      case 'tutorRates': case 'students': case 'settings': case 'classes': case 'payments': case 'dayNotes':
+      case 'tutorRates': case 'students': case 'settings': case 'classes': case 'payments':
         return c.isAdmin;
+      case 'dayNotes':   // the office, or the tutor the note belongs to
+        return c.isAdmin || (op === 'delete' ? teaches(c, before) : teaches(c, after) && (!before || teaches(c, before)) && id === `${c.myTutorId}_${after.date}`);
       case 'personal':   // a tutor keeps their own personal time
-        return c.isAdmin || (op === 'delete' ? teaches(c, before) : teaches(c, after) && (!before || teaches(c, before)));
+        return op === 'delete' ? teaches(c, before) : teaches(c, after) && (!before || teaches(c, before));
       default: return false;
     }
   }
@@ -1334,7 +1336,6 @@ const Repo = (() => {
       if (role === 'admin') {
         jobs.push(sub(`payments:${m}`, 'payments', [['month', '==', m]]).catch(() => {}));
         jobs.push(sub(`notes:${m}`, 'dayNotes', [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]], notesError).catch(() => {}));
-        if (!ui.personalBlocked) jobs.push(sub(`personal:${m}`, 'personal', [['date', '>=', `${m}-01`], ['date', '<=', `${m}-31`]], personalError).catch(() => {}));
       }
     }
     if (tid && !ui.notesBlocked) jobs.push(sub('notes', 'dayNotes', [['tutorId', '==', tid]], notesError).catch(() => {}));   // once blocked, don't retry on every render
@@ -2253,9 +2254,9 @@ function cardHTML(c) {
 const calSel = () => (ui.calTutors || []).filter(id => Repo.tutor(id));
 const calShows = id => { const sel = calSel(); return !sel.length || sel.includes(id); };
 const calClasses = () => Repo.classes().filter(c => !can('assign') || calShows(c.tutorId));
-/* A tutor's own time (meeting, sport, errands). Tutors see and edit their own; the office sees everyone's. */
-const calPersonal = () => Repo.personal().filter(p => can('assign') ? calShows(p.tutorId) : p.tutorId === myTutorId());
-const canPersonal = () => isAdmin() || !!myTutorId();
+/* A tutor's own time (meeting, sport, errands): only that tutor sees it, the office doesn't */
+const calPersonal = () => Repo.personal().filter(p => p.tutorId === myTutorId());
+const canPersonal = () => !!myTutorId();
 const pvItem = p => ({ p, s:toMin(p.startTime), e:toMin(p.endTime) });
 function pvHTML(x, rs, ppm = PPM, compact = false, showTutor = false) {
   const p = x.p, w = 100 / x.n, gap = compact ? 2 : 3, top = (x.s - rs) * ppm, h = Math.max(compact ? 16 : 24, (x.e - x.s) * ppm - (compact ? 1 : 2));
@@ -2283,7 +2284,7 @@ function calendarHTML() {
     : c.mode === 'week' ? `${fmtD(ws, { day:'numeric', month:'short' })} – ${fmtD(we, { day:'numeric', month:'short', year:'numeric' })}`
     : fmtD(c.date, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const admin = can('class.create'), md = c.mode === 'month' ? monthData() : null;
-  const hint = admin ? (c.mode === 'day' ? 'Click a free slot to add a class' : c.mode === 'week' ? 'Click an empty time to add a class' : 'Click a free gap to add a class, a date to open that day. Notes for each day are at the bottom') : 'Showing your classes. Click an empty time to add personal time, like a meeting or sport';
+  const hint = admin ? (c.mode === 'day' ? 'Click a free slot to add a class' : c.mode === 'week' ? 'Click an empty time to add a class' : 'Click a free gap to add a class, a date to open that day. Notes for each day are at the bottom') : `Showing your classes. Click an empty time to add personal time, like a meeting or sport${c.mode === 'month' ? '. Write notes for each day at the bottom' : ''}`;
   return `<div class="cal-wrap">
     <div class="cal-toolbar">
       <div class="seg" role="group" aria-label="Calendar view">${['month', 'week', 'day'].map(m => `<button type="button" data-action="cal-mode" data-mode="${m}" aria-pressed="${c.mode === m}">${cap(m)}</button>`).join('')}</div>
@@ -2297,7 +2298,7 @@ function calendarHTML() {
     </div>
     ${calTutorPicker()}
     ${md ? monthBarHTML(md) : ''}
-    <div class="legend"><span>Colour shows the student</span><span><i style="background:${NO_COLOUR}"></i>No colour set</span>${can('manage') ? '<button type="button" class="btn btn-sm" data-action="manage" data-tab="students">Set student colours</button>' : ''}${c.mode !== 'week' ? `<span><i class="free-swatch"></i>${md ? `Free for ${fmtDur(c.minGap)} or more` : 'Free'}</span>` : ''}<span><i class="pv-swatch"></i>Personal time</span><span class="hint">${hint}</span></div>
+    <div class="legend"><span>Colour shows the student</span><span><i style="background:${NO_COLOUR}"></i>No colour set</span>${can('manage') ? '<button type="button" class="btn btn-sm" data-action="manage" data-tab="students">Set student colours</button>' : ''}${c.mode !== 'week' ? `<span><i class="free-swatch"></i>${md ? `Free for ${fmtDur(c.minGap)} or more` : 'Free'}</span>` : ''}${canPersonal() ? '<span><i class="pv-swatch"></i>Personal time (only you see it)</span>' : ''}<span class="hint">${hint}</span></div>
     ${calJumpHTML(c.mode === 'month' ? [monthStart(c.date), addDays(addMonths(c.date, 1), -1)] : c.mode === 'week' ? [ws, we] : [c.date, c.date])}
     ${md ? monthGridHTML(md) : c.mode === 'week' ? weekHTML() : dayHTML()}
   </div>`;
@@ -2367,7 +2368,7 @@ function monthGridHTML(md) {
   const tutorHeads = multi ? cols.map((c, i) => `<div class="mg-tutor${c.first && wkStart(c.date, i) ? ' wk' : c.first ? ' dstart' : ''}${c.date === now.date ? ' today' : ''}" style="--tc:${tutorHue(c.tutor.id)}" title="${esc(c.tutor.name)}">${esc(shortTutor(c.tutor.name))}</div>`).join('') : '';
   const body = cols.map((c, i) => {
     const d = c.date, t = c.tutor, isToday = d === now.date, past = d < now.date;
-    const from = isToday ? Math.max(open, Math.ceil(now.min / 15) * 15) : open;
+    const from = isToday ? Math.max(open, Math.ceil(now.min / 10) * 10) : open;
     const gaps = freeIntervals(c.items, from, close, minGap).map(f => {
       const len = f.e - f.s, style = `top:${y(f.s) + 1}px;height:${Math.max(6, y(f.e) - y(f.s) - 2)}px`;
       const range = `${hm(fromMin(f.s))}–${hm(fromMin(f.e))}`, tip = `Free ${range}`;
@@ -2380,7 +2381,7 @@ function monthGridHTML(md) {
       return `<div class="free mg-free${past ? ' past' : ''}" style="${style}" title="${tip}">${label}</div>`;
     }).join('');
     const evs = c.items.map(x => {
-      if (x.p) return pvHTML(x, rs, MPPM, true, true);
+      if (x.p) return pvHTML(x, rs, MPPM, true);
       const cl = x.c, lvl = worstLevel(classAlerts(cl)), time = `${hm(cl.startTime)}–${hm(cl.endTime)}`, w = 100 / x.n;
       const names = cl.studentIds.map(sid => studentName(cl, sid)).join(', '), sub = [cl.subject, qual(cl.qualification).id ? qual(cl.qualification).label : ''].filter(Boolean).join(', ');
       return `<button type="button" class="ev mg-ev${cl.status === 'completed' ? ' done' : ''}${x.n > 1 ? ' clash' : ''}" style="${colourVars(cl)};top:${y(x.s)}px;height:${Math.max(16, y(x.e) - y(x.s) - 1)}px;left:calc(${x.lane * w}% + 2px);width:calc(${w}% - 4px)" data-action="open-class" data-id="${cl.id}" title="${esc(`${time} ${cl.title}, ${courseLabel(cl)} (${classTutor(cl)})${names ? `: ${names}` : ''}${x.n > 1 ? '. Overlaps another class.' : ''}`)}" aria-label="${esc(`${cl.title}, ${time}`)}">${lvl ? `<span class="flag ${lvl}"></span>` : ''}<span class="ev-time">${time}</span><strong>${esc(cl.title)}</strong>${sub ? `<span class="ev-sub">${esc(sub)}</span>` : ''}</button>`;
@@ -2396,12 +2397,12 @@ function monthGridHTML(md) {
   const notes = cols.map((c, i) => {
     const d = c.date, t = c.tutor, text = Repo.dayNote(t.id, d), sep = c.first && wkStart(d, i) ? ' wk' : c.first && i > 0 && multi ? ' dstart' : '';
     const label = `Note for ${t.name}, ${fmtD(d, { weekday:'short', day:'numeric', month:'short' })}`;
-    return `<div class="mg-note${sep}${d === now.date ? ' today' : ''}">${admin && t.id
+    return `<div class="mg-note${sep}${d === now.date ? ' today' : ''}">${(admin || t.id === myTutorId()) && t.id
       ? `<textarea id="note-${esc(t.id)}-${d}" data-change="day-note" data-tutor="${esc(t.id)}" data-date="${d}" rows="3" maxlength="600" placeholder="Note" aria-label="${esc(label)}">${esc(text)}</textarea>`
       : text ? `<p title="${esc(label)}">${esc(text)}</p>` : ''}</div>`;
   }).join('');
   const firstStart = md.list.length ? Math.min(...md.list.map(c => toMin(c.startTime))) : '';
-  return `${admin && ui.notesBlocked ? `<div class="notice"><span>Day notes can’t be saved until the updated Firestore rules are published (Firebase console → Firestore Database → Rules).</span></div>` : ''}
+  return `${ui.notesBlocked ? `<div class="notice"><span>Day notes can’t be shown or saved until the updated Firestore rules are published (Firebase console → Firestore Database → Rules).</span></div>` : ''}
   <div class="mg" id="mt" data-rs="${rs}" data-first="${firstStart}" style="--hh:${60 * MPPM}px;--cw:${cw}px;--hd:${multi ? 58 : 36}px">
     <div class="mg-inner" style="grid-template-columns:60px repeat(${cols.length}, var(--cw))">
       <div class="mg-corner" style="grid-row:span ${multi ? 2 : 1}">GMT+7</div>${dayHeads}
@@ -2415,8 +2416,10 @@ function monthGridHTML(md) {
 async function onDayNote(el) {
   const { tutor, date } = el.dataset, text = el.value.trim();
   if (Repo.dayNote(tutor, date) === text) return;
-  const r = await run(() => Repo.setDayNote(tutor, date, text));
-  if (r.ok) toast(text ? `Note saved for ${tutorName(tutor)}, ${fmtD(date, { weekday:'short', day:'numeric', month:'short' })}.` : 'Note removed.');
+  const when = fmtD(date, { weekday:'short', day:'numeric', month:'short' });
+  try { await Repo.setDayNote(tutor, date, text); }
+  catch (e) { toast(e?.code === 'permission-denied' ? 'The note wasn’t saved: the office needs to publish the updated Firestore rules first.' : e?.message || 'The note wasn’t saved.', { tone:'warn' }); return; }
+  toast(text ? `Note saved${isAdmin() ? ` for ${tutorName(tutor)}` : ''}, ${when}.` : 'Note removed.');
 }
 function timeRange(list) {
   const st = Repo.settings();
@@ -2454,7 +2457,7 @@ function weekHTML() {
     const evs = layoutLanes([...list.filter(c => c.date === d).map(c => ({ c, s:toMin(c.startTime), e:toMin(c.endTime) })), ...pvs.filter(p => p.date === d).map(pvItem)]);
     const one = !can('assign') || calSel().length === 1;
     return `<div class="tg-col${d === now.date ? ' today' : ''}${slot ? ' can-add' : ''}" ${slot ? `data-action="cal-slot" data-date="${d}" data-rs="${rs}"` : ''} style="height:${(re - rs) * PPM}px">
-      ${evs.map(x => x.p ? pvHTML(x, rs, PPM, false, !one) : eventHTML(x, rs, one)).join('')}
+      ${evs.map(x => x.p ? pvHTML(x, rs) : eventHTML(x, rs, one)).join('')}
       ${d === now.date && now.min >= rs && now.min <= re ? `<div class="nowline" style="top:${(now.min - rs) * PPM}px"></div>` : ''}
     </div>`;
   }).join('');
@@ -2474,7 +2477,7 @@ function dayHTML() {
   const [rs, re] = timeRange([...dayList, ...dayPv]);
   const open = toMin(st.dayStart), close = toMin(st.dayEnd);
   const past = d < now.date;
-  const from = d === now.date ? Math.max(open, Math.ceil(now.min / 15) * 15) : open;
+  const from = d === now.date ? Math.max(open, Math.ceil(now.min / 10) * 10) : open;
   const per = tutors.map(t => {
     const mine = dayList.filter(c => c.tutorId === t.id), pv = dayPv.filter(p => p.tutorId === t.id);
     const free = past ? [] : freeIntervals([...mine.filter(c => !isCancelled(c)).map(c => ({ s:toMin(c.startTime), e:toMin(c.endTime) })), ...pv.map(pvItem)], from, close, 30);
@@ -3173,16 +3176,15 @@ let ps = null;
 const PV_PRESETS = ['Meeting', 'Badminton', 'Exercise', 'Shopping', 'Doctor', 'Personal'];
 function openPersonalForm(existing, prefill = {}) {
   if (!canPersonal()) return;
-  const admin = isAdmin(), tid = existing?.tutorId || prefill.tutorId || (admin ? (calSel().length === 1 ? calSel()[0] : '') : myTutorId());
-  if (existing && !admin && existing.tutorId !== myTutorId()) return;
+  if (existing && existing.tutorId !== myTutorId()) return;
   const start = existing?.startTime || prefill.startTime || '18:00';
-  ps = { id:existing?.id || null, seriesId:existing?.seriesId || null, d:{ title:existing?.title || '', tutorId:admin ? tid : myTutorId(), date:existing?.date || prefill.date || (ui.cal.date >= bkkNow().date ? ui.cal.date : bkkNow().date), startTime:start, endTime:existing?.endTime || prefill.endTime || fromMin(Math.min(toMin(start) + 60, LAST_SLOT)) } };
+  ps = { id:existing?.id || null, seriesId:existing?.seriesId || null, d:{ title:existing?.title || '', tutorId:myTutorId(), date:existing?.date || prefill.date || (ui.cal.date >= bkkNow().date ? ui.cal.date : bkkNow().date), startTime:start, endTime:existing?.endTime || prefill.endTime || fromMin(Math.min(toMin(start) + 60, LAST_SLOT)) } };
   $('#modal-root').innerHTML = personalFormHTML();
   document.body.classList.add('no-scroll');
   renderPvWarn(); $('#pv-title').focus();
 }
 function personalFormHTML() {
-  const d = ps.d, admin = isAdmin(), edit = !!ps.id;
+  const d = ps.d, edit = !!ps.id;
   const later = ps.seriesId ? Repo.personal().filter(p => p.seriesId === ps.seriesId && p.date >= d.date).length : 0;
   return `<div class="modal-back" data-action="modal-backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pv-heading">
@@ -3191,7 +3193,6 @@ function personalFormHTML() {
     <div class="modal-body">
       <div class="field"><label for="pv-title">What</label><input id="pv-title" name="title" type="text" maxlength="60" value="${esc(d.title)}" placeholder="e.g. Meeting, Badminton">
         <div class="pv-presets">${PV_PRESETS.map(t => `<button type="button" class="tchip all" data-action="pv-preset" data-title="${t}">${t}</button>`).join('')}</div></div>
-      ${admin ? `<div class="field"><label for="pv-tutor">Tutor</label><select id="pv-tutor" name="tutorId"><option value="">Choose a tutor</option>${activeTutors().map(t => `<option value="${t.id}" ${t.id === d.tutorId ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></div>` : ''}
       <div class="grid g3">
         <div class="field"><label for="pv-date">Date</label><input id="pv-date" name="date" type="date" value="${esc(d.date)}"></div>
         <div class="field"><label for="pv-start">Starts</label><select id="pv-start" name="startTime">${timeOptions(d.startTime)}</select></div>
@@ -3199,7 +3200,7 @@ function personalFormHTML() {
       </div>
       ${edit ? '' : `<div class="field"><label for="pv-repeat">Repeat</label><select id="pv-repeat" name="repeat">${[1, 2, 4, 8, 12].map(n => `<option value="${n}">${n === 1 ? 'Does not repeat' : `Every week, ${n} times`}</option>`).join('')}</select></div>`}
       <div id="pv-warn" aria-live="polite"></div>
-      <p class="hint">${admin ? 'The tutor sees this on their calendar.' : 'The office sees this on the calendar, so classes aren’t booked over it.'} Free start times for new classes skip this time.</p>
+      <p class="hint">${icon('lock', 'icon icon-xs')} Only you can see this. The office and other tutors don’t.</p>
       <div class="form-error" id="pv-error" role="alert" hidden></div>
     </div>
     <div class="modal-foot">${edit ? `<button type="button" class="btn btn-danger" data-action="pv-delete">${icon('trash')}Delete</button>${later > 1 ? `<button type="button" class="btn btn-danger" data-action="pv-delete-series">Delete this and later repeats (${later})</button>` : ''}` : ''}
@@ -3210,7 +3211,6 @@ function readPv() {
   const f = $('#pv-form'); if (!f) return null;
   const v = n => f.elements[n]?.value ?? '';
   Object.assign(ps.d, { title:v('title').trim(), date:v('date'), startTime:v('startTime'), endTime:v('endTime') });
-  if (f.elements.tutorId) ps.d.tutorId = v('tutorId');
   return ps.d;
 }
 function renderPvWarn() {
@@ -3223,7 +3223,6 @@ function renderPvWarn() {
 async function submitPersonal(form) {
   const d = readPv(), box = $('#pv-error'), errs = [];
   if (!d.title) errs.push('Write what it is, for example Meeting.');
-  if (!d.tutorId) errs.push('Choose a tutor.');
   if (!d.date) errs.push('Pick a date.');
   if (!(toMin(d.endTime) > toMin(d.startTime))) errs.push('The end time must be after the start time.');
   if (errs.length) { box.innerHTML = errs.map(x => `<p>${esc(x)}</p>`).join(''); box.hidden = false; return; }
@@ -3231,7 +3230,7 @@ async function submitPersonal(form) {
   const base = { tutorId:d.tutorId, title:d.title, startTime:d.startTime, endTime:d.endTime, seriesId, createdBy:ui.auth.uid, createdByName:myName() || '' };
   const docs = ps.id ? [{ id:ps.id, ...base, date:d.date }] : occurrenceDates(d.date, repeat).map(date => ({ ...base, date }));
   try { await Repo.savePersonal(docs); }
-  catch (e) { box.innerHTML = `<p>${esc(e?.code === 'permission-denied' ? 'Personal time can’t be saved until the updated Firestore rules are published. Ask the office to publish them (Firebase console → Firestore Database → Rules).' : e?.message || 'Something went wrong.')}</p>`; box.hidden = false; return; }
+  catch (e) { box.innerHTML = `<p>${esc(e?.code === 'permission-denied' ? 'Personal time can’t be saved until the office publishes the updated Firestore rules (Firebase console → Firestore Database → Rules).' : e?.message || 'Something went wrong.')}</p>`; box.hidden = false; return; }
   closeModal(true);
   toast(ps?.id ? 'Personal time saved.' : repeat > 1 ? `${d.title} added for ${repeat} weeks.` : `${d.title} added to the calendar.`);
 }
@@ -4153,9 +4152,9 @@ const actions = {
   'cal-slot': (el, e) => {
     if (e.target !== el) return;
     const rs = Number(el.dataset.rs), y = e.clientY - el.getBoundingClientRect().top;
-    const m = rs + Math.floor(y / PPM / 30) * 30;
-    if (can('class.create')) openClassForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 15)), endTime:fromMin(Math.min(m + 90, LAST_SLOT)) });
-    else if (canPersonal()) openPersonalForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 15)), endTime:fromMin(Math.min(m + 60, LAST_SLOT)) });
+    const m = rs + Math.floor(y / PPM / 10) * 10;   // the 10 minutes you clicked
+    if (can('class.create')) openClassForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 10)), endTime:fromMin(Math.min(m + 90, LAST_SLOT)) });
+    else if (canPersonal()) openPersonalForm(null, { date:el.dataset.date, startTime:fromMin(Math.min(m, LAST_SLOT - 10)), endTime:fromMin(Math.min(m + 60, LAST_SLOT)) });
   },
   'new-pv': el => openPersonalForm(null, { date:el.dataset.date, startTime:el.dataset.start, endTime:el.dataset.end, tutorId:el.dataset.tutor }),
   'open-pv': el => { const p = Repo.personal().find(x => x.id === el.dataset.id); if (p) openPersonalForm(p); },
