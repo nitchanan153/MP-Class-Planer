@@ -519,6 +519,8 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 #cf-stu-add{font-weight:600}
 .new-stu{display:flex;gap:6px;margin-top:6px}
 .tpick{display:flex;align-items:center;gap:6px}
+.tpick select[id$="-ap"]{flex:0 0 auto;width:auto;min-width:76px;font-weight:700}
+.tp-note{display:block;margin-top:4px;font-size:12px;color:var(--ink-3)}
 .tpick select{flex:1;min-width:0;font-variant-numeric:tabular-nums}
 .tpick b{font-weight:700;color:var(--ink-2)}
 .cf-days{border:0;padding:0;margin:0}
@@ -929,26 +931,44 @@ function timeOptions(cur, step = 5, from = 0) {
   if (cur) set.add(cur);
   return [...set].sort().map(t => `<option value="${t}" ${t === cur ? 'selected' : ''}>${t}</option>`).join('');
 }
-/* Class and personal-time forms: an hour list (00–23) and a minute list (every 5 minutes) that fill a hidden
-   input named startTime / endTime, so the rest of the form reads one "HH:MM" value. */
-function timePickHTML(id, name, value, label) {
-  const [h, m] = String(value || '09:00').split(':'), mins = new Set(Array.from({ length:12 }, (_, i) => String(i * 5).padStart(2, '0')));
-  mins.add(m);   // keep a time that isn't on the 5-minute grid
-  return `<span class="tpick"><select id="${id}-h" data-tp="${id}" aria-label="${esc(label)}, hour">${Array.from({ length:24 }, (_, i) => String(i).padStart(2, '0')).map(x => `<option value="${x}" ${x === h ? 'selected' : ''}>${x}</option>`).join('')}</select><b aria-hidden="true">:</b><select id="${id}-m" data-tp="${id}" aria-label="${esc(label)}, minutes">${[...mins].sort().map(x => `<option value="${x}" ${x === m ? 'selected' : ''}>${x}</option>`).join('')}</select><input type="hidden" id="${id}" name="${name}" value="${esc(value || '')}"></span>`;
+/* Class and personal-time forms: hour (1–12), minutes (every 5) and AM / PM, filling a hidden input named
+   startTime / endTime that holds 24-hour "HH:MM". An end time at or before the start, up to 6 AM, is the next
+   day: 11 PM to 12 AM is stored as 23:00–24:00 (the app already shows 24:00 as 00:00). */
+const NEXT_DAY_UNTIL = 6 * 60;
+const to12 = t => { const m = ((toMin(t) % 1440) + 1440) % 1440, h = Math.floor(m / 60); return { h:String(h % 12 || 12), m:pad(m % 60), ap:h < 12 ? 'AM' : 'PM' }; };
+const from12 = (h, m, ap) => fromMin((Number(h) % 12 + (ap === 'PM' ? 12 : 0)) * 60 + Number(m));
+const ampm = t => { const x = to12(t); return `${x.h}:${x.m} ${x.ap}`; };
+function timePickHTML(id, name, value, label, role = 'start') {
+  const v = value || '09:00', x = to12(v), mins = new Set(Array.from({ length:12 }, (_, i) => pad(i * 5)));
+  mins.add(x.m);   // keep a time that isn't on the 5-minute grid
+  const sel = (key, list, cur, aria) => `<select id="${id}-${key}" data-tp="${id}" aria-label="${esc(label)}, ${aria}">${list.map(o => `<option value="${o}" ${o === cur ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+  return `<span class="tpick" data-role="${role}">${sel('h', ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'], x.h, 'hour')}<b aria-hidden="true">:</b>${sel('m', [...mins].sort(), x.m, 'minutes')}${sel('ap', ['AM', 'PM'], x.ap, 'AM or PM')}<input type="hidden" id="${id}" name="${name}" value="${esc(v)}"></span><span class="tp-note" id="${id}-note">${timeNote(v, role)}</span>`;
 }
-/* a time picker's hour or minute changed: update its hidden value and return that input */
+/* the 24-hour time under the picker; "midnight" or "next day" for an end after 12 AM */
+function timeNote(v, role) {
+  const m = toMin(v); if (!Number.isFinite(m)) return '';
+  if (role === 'end' && m >= 1440) return m === 1440 ? 'Midnight (24:00)' : `${hm(v)} the next day`;
+  return `${v} (24-hour)`;
+}
+/* a time picker's hour, minute or AM/PM changed: update its hidden value and return that input */
 function syncTimePick(sel) {
-  const id = sel.dataset.tp, hid = document.getElementById(id);
-  hid.value = `${document.getElementById(`${id}-h`).value}:${document.getElementById(`${id}-m`).value}`;
+  const id = sel.dataset.tp, hid = document.getElementById(id), role = hid.closest('.tpick').dataset.role;
+  let v = from12(document.getElementById(`${id}-h`).value, document.getElementById(`${id}-m`).value, document.getElementById(`${id}-ap`).value);
+  const start = role === 'end' ? toMin(hid.form?.elements.startTime?.value) : NaN;
+  if (role === 'end' && Number.isFinite(start) && toMin(v) <= start && toMin(v) <= NEXT_DAY_UNTIL) v = fromMin(toMin(v) + 1440);
+  hid.value = v;
+  const note = document.getElementById(`${id}-note`); if (note) note.textContent = timeNote(v, role);
   return hid;
 }
 /* set a time from code (a time picker's hidden input, or a plain time select) */
 function setTimeSelect(el, value) {
   if (el.type === 'hidden') {
     el.value = value;
-    const [h, m] = value.split(':'), hs = document.getElementById(`${el.id}-h`), ms = document.getElementById(`${el.id}-m`);
-    if (hs) hs.value = h;
-    if (ms) { if (![...ms.options].some(o => o.value === m)) ms.insertAdjacentHTML('beforeend', `<option value="${m}">${m}</option>`); ms.value = m; }
+    const x = to12(value), get = k => document.getElementById(`${el.id}-${k}`), ms = get('m');
+    if (get('h')) get('h').value = x.h;
+    if (ms) { if (![...ms.options].some(o => o.value === x.m)) ms.insertAdjacentHTML('beforeend', `<option value="${x.m}">${x.m}</option>`); ms.value = x.m; }
+    if (get('ap')) get('ap').value = x.ap;
+    const note = get('note'); if (note) note.textContent = timeNote(value, el.closest('.tpick')?.dataset.role);
     return;
   }
   if (![...el.options].some(o => o.value === value)) el.innerHTML = timeOptions(value);
@@ -3229,7 +3249,7 @@ function personalFormHTML() {
       <div class="grid g3">
         <div class="field"><label for="pv-date">Date</label><input id="pv-date" name="date" type="date" value="${esc(d.date)}"></div>
         <div class="field"><label for="pv-start-h">Starts</label>${timePickHTML('pv-start', 'startTime', d.startTime, 'Starts')}</div>
-        <div class="field"><label for="pv-end-h">Ends</label>${timePickHTML('pv-end', 'endTime', d.endTime, 'Ends')}</div>
+        <div class="field"><label for="pv-end-h">Ends</label>${timePickHTML('pv-end', 'endTime', d.endTime, 'Ends', 'end')}</div>
       </div>
       ${edit ? '' : `<div class="field"><label for="pv-repeat">Repeat</label><select id="pv-repeat" name="repeat">${[1, 2, 4, 8, 12].map(n => `<option value="${n}">${n === 1 ? 'Does not repeat' : `Every week, ${n} times`}</option>`).join('')}</select></div>`}
       <div id="pv-warn" aria-live="polite"></div>
@@ -3335,7 +3355,7 @@ function classFormHTML() {
         <div class="grid ${fs.isEdit ? 'g3' : 'g2'}">
           ${fs.isEdit ? `<div class="field"><label for="cf-date">Date</label><input id="cf-date" name="date" type="date" value="${esc(d.date)}"></div>` : ''}
           <div class="field"><label for="cf-start-h">Starts</label>${timePickHTML('cf-start', 'startTime', d.startTime, 'Starts')}</div>
-          <div class="field"><label for="cf-end-h">Ends</label>${timePickHTML('cf-end', 'endTime', d.endTime, 'Ends')}</div>
+          <div class="field"><label for="cf-end-h">Ends</label>${timePickHTML('cf-end', 'endTime', d.endTime, 'Ends', 'end')}</div>
         </div>
         <p class="hint" style="margin-top:-6px">All times are Thailand time (GMT+7).</p>
         <div class="field"><label for="cf-tutor">Tutor</label><select id="cf-tutor" name="tutorId"><option value="">Choose a tutor</option>${tutors.map(t => opt(t.id, t.name, t.id === d.tutorId)).join('')}</select></div>
@@ -3429,7 +3449,7 @@ function onFormInput(e) {
   if (CLOUD && t.name === 'date' && /^\d{4}-\d\d/.test(fs.draft.date)) Repo.ensureMonths([fs.draft.date.slice(0, 7)]).then(() => fs && renderAvail());
   if (t.name === 'startTime' && fs.draft.startTime && prevS && prevE && prevS !== fs.draft.startTime) {
     const dur = toMin(prevE) - toMin(prevS), ne = toMin(fs.draft.startTime) + dur;
-    if (dur > 0 && ne <= LAST_SLOT) { fs.draft.endTime = fromMin(ne); setTimeSelect(t.form.elements.endTime, fs.draft.endTime); }
+    if (dur > 0 && ne <= 1440 + NEXT_DAY_UNTIL) { fs.draft.endTime = fromMin(ne); setTimeSelect(t.form.elements.endTime, fs.draft.endTime); }
   }
   $('#cf-link-field').hidden = fs.draft.mode !== 'online';
   $('#cf-room-field').hidden = fs.draft.mode !== 'in_person';
@@ -4284,8 +4304,9 @@ function onClick(e) {
 }
 function onChange(e) {
   const t = e.target;
-  if (t.dataset.tp) {   // hour or minute of a time picker
+  if (t.dataset.tp) {   // hour, minute or AM/PM of a time picker
     const hid = syncTimePick(t);
+    if (hid.name === 'startTime') { const end = hid.form?.elements.endTime; if (end) { const ap = document.getElementById(`${end.id}-ap`); if (ap) syncTimePick(ap); } }   // re-check next day
     if (hid.closest('#class-form')) onFormInput({ target:hid, type:'change' });
     if (hid.closest('#pv-form')) renderPvWarn();
     return;
