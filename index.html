@@ -518,6 +518,15 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .stu-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;min-height:24px;align-items:center;font-size:13.5px}
 #cf-stu-add{font-weight:600}
 .new-stu{display:flex;gap:6px;margin-top:6px}
+.cf-days{border:0;padding:0;margin:0}
+.cf-days legend{font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:6px;padding:0}
+.day-chips{display:flex;flex-wrap:wrap;gap:6px}
+.day-chip{position:relative;display:inline-flex}
+.day-chip input{position:absolute;opacity:0;width:1px;height:1px}
+.day-chip span{display:inline-flex;align-items:center;justify-content:center;min-width:48px;min-height:36px;padding:0 10px;border:1.5px solid var(--rule);border-radius:999px;background:var(--sheet);font-size:13.5px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.day-chip input:checked+span{background:var(--ink);border-color:var(--ink);color:#fff}
+.day-chip input:focus-visible+span{outline:2px solid var(--focus, #2563EB);outline-offset:2px}
+#cf-range{margin-top:6px}
 .new-stu input{flex:1}
 .lp-box{border:1px solid var(--rule);border-radius:10px;background:var(--paper);padding:12px 14px;margin-bottom:14px}
 .lp-box h3{font-size:15px;margin:0 0 8px}
@@ -3258,12 +3267,12 @@ function defaultDraft(p) {
 function openClassForm(existing, prefill = {}) {
   if (!can(existing ? 'class.edit' : 'class.create', existing)) return;
   const p = Object.fromEntries(Object.entries(prefill).filter(([, v]) => v));
-  fs = { draft:existing ? structuredClone(existing) : defaultDraft(p), isEdit:!!existing, id:existing?.id, repeat:1, dirty:false,
+  fs = { draft:existing ? structuredClone(existing) : defaultDraft(p), isEdit:!!existing, id:existing?.id, endDate:'', days:null, dirty:false,
     orig:existing ? { title:existing.title || '', studentIds:[...existing.studentIds] } : null };
   if (existing) { fs.draft.examBoard = boardOf(existing) || 'UK'; fs.draft.qualification = classLevel(existing) || ''; }
   $('#modal-root').innerHTML = classFormHTML();
   document.body.classList.add('no-scroll');
-  renderPicker(); renderAvail(); showPriceHint();
+  renderPicker(); renderAvail(); showPriceHint(); showRange();
   $('#cf-stu-add').focus();
 }
 function classFormHTML() {
@@ -3293,8 +3302,14 @@ function classFormHTML() {
           <div class="field"><label for="cf-qual">Qualification</label><select id="cf-qual" name="qualification">${qualOptions(d.examBoard, d.qualification)}</select><p class="hint" id="cf-price"></p></div>
           <div class="field"><label for="cf-year">Year group</label><select id="cf-year" name="yearGroup">${yearOptions(d.examBoard, d.yearGroup)}</select></div>
         </div>
-        <div class="grid g3">
-          <div class="field"><label for="cf-date">Date</label><input id="cf-date" name="date" type="date" value="${esc(d.date)}"></div>
+        ${fs.isEdit ? '' : `<div class="grid g2">
+          <div class="field"><label for="cf-date">Date start</label><input id="cf-date" name="date" type="date" value="${esc(d.date)}"></div>
+          <div class="field"><label for="cf-end-date">Date end <span class="muted">(leave empty for one class)</span></label><input id="cf-end-date" name="endDate" type="date" value="${esc(fs.endDate)}" min="${esc(d.date)}"></div>
+        </div>
+        <fieldset class="field cf-days" id="cf-days" ${fs.endDate > d.date ? '' : 'hidden'}><legend>Repeat on</legend><div class="day-chips">${WEEKDAYS.map((w, i) => `<label class="day-chip"><input type="checkbox" name="days" value="${i}" ${formDays().has(i) ? 'checked' : ''}><span>${w}</span></label>`).join('')}</div>
+          <p class="hint" id="cf-range"></p></fieldset>`}
+        <div class="grid ${fs.isEdit ? 'g3' : 'g2'}">
+          ${fs.isEdit ? `<div class="field"><label for="cf-date">Date</label><input id="cf-date" name="date" type="date" value="${esc(d.date)}"></div>` : ''}
           <div class="field"><label for="cf-start">Starts</label><select id="cf-start" name="startTime">${timeOptions(d.startTime)}</select></div>
           <div class="field"><label for="cf-end">Ends</label><select id="cf-end" name="endTime">${timeOptions(d.endTime)}</select></div>
         </div>
@@ -3306,7 +3321,6 @@ function classFormHTML() {
         </fieldset>
         <div class="field" id="cf-link-field" ${d.mode === 'online' ? '' : 'hidden'}><label for="cf-link">Class link</label><input id="cf-link" name="meetingLink" type="url" value="${esc(d.meetingLink)}" placeholder="https://meet.google.com/…"></div>
         <div class="field" id="cf-room-field" ${d.mode === 'in_person' ? '' : 'hidden'}><label for="cf-room">Classroom</label><input id="cf-room" name="room" type="text" list="dl-rooms" value="${esc(d.room)}" placeholder="e.g. Room 1"></div>
-        ${fs.isEdit ? '' : `<div class="field"><label for="cf-repeat">Repeat</label><select id="cf-repeat" name="repeat">${[1, 2, 3, 4, 6, 8, 10, 12].map(n => opt(n, n === 1 ? 'Does not repeat' : `Every week, ${n} classes in total`, n === fs.repeat)).join('')}</select></div>`}
         <datalist id="dl-rooms">${(st.rooms || []).map(r => `<option value="${esc(r)}">`).join('')}</datalist>
       </div>
       <aside class="cf-side" id="cf-avail" aria-live="polite"></aside>
@@ -3335,6 +3349,28 @@ function applyLevel(f, sys, year) {
   f.elements.qualification.innerHTML = qualOptions(sys, keep ? cur : q || QUALS.find(x => x.board === sys)?.id || '');
   d.qualification = f.elements.qualification.value;
 }
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MAX_SERIES = 120;
+/* the weekdays a range repeats on: the start date's weekday until you pick others */
+const formDays = () => fs.days && fs.days.size ? fs.days : new Set([weekdayIdx(fs.draft.date || bkkNow().date)]);
+/* every date the form will create: one date, or each chosen weekday from Date start to Date end */
+function formDates() {
+  const d = fs.draft;
+  if (fs.isEdit || !d.date || !fs.endDate || fs.endDate <= d.date) return d.date ? [d.date] : [];
+  const days = formDays(), out = [];
+  for (let x = d.date; x <= fs.endDate && out.length <= MAX_SERIES; x = addDays(x, 1)) if (days.has(weekdayIdx(x))) out.push(x);
+  return out;
+}
+function showRange() {
+  const box = $('#cf-days'); if (!box || !fs) return;
+  const on = fs.endDate > fs.draft.date; box.hidden = !on;
+  const dates = formDates(), days = [...formDays()].sort().map(i => WEEKDAYS[i]).join(', ');
+  const hint = $('#cf-range');
+  if (hint) hint.textContent = !on ? '' : !dates.length ? 'No dates match. Pick at least one weekday inside the range.'
+    : dates.length > MAX_SERIES ? `That’s more than ${MAX_SERIES} classes. Choose a shorter range.`
+    : `Every ${days}: ${plural(dates.length, 'class', 'classes')}, ${fmtD(dates[0], { weekday:'short', day:'numeric', month:'short' })} to ${fmtD(dates[dates.length - 1], { weekday:'short', day:'numeric', month:'short', year:'numeric' })}`;
+  for (const cb of $$('#cf-days input[name=days]')) cb.checked = formDays().has(Number(cb.value));
+}
 function qualOptions(board, cur) {
   const list = QUALS.filter(q => q.board === board);
   return `<option value="" ${cur ? '' : 'selected'}>Not set</option>` + list.map(q => `<option value="${q.id}" ${q.id === cur ? 'selected' : ''}>${esc(qualName(q))}</option>`).join('');
@@ -3352,7 +3388,10 @@ function readForm() {
   d.date = v('date'); d.startTime = v('startTime'); d.endTime = v('endTime');
   d.tutorId = v('tutorId'); d.mode = f.elements.mode.value || 'online';
   d.meetingLink = v('meetingLink').trim(); d.room = v('room').trim();
-  if (f.elements.repeat) fs.repeat = Number(v('repeat')) || 1;
+  if (f.elements.endDate) {
+    fs.endDate = v('endDate');
+    if (fs.daysTouched) fs.days = new Set([...f.querySelectorAll('input[name=days]:checked')].map(x => Number(x.value)));
+  }
 }
 function onFormInput(e) {
   const t = e.target; if (!fs) return;
@@ -3372,7 +3411,10 @@ function onFormInput(e) {
   $('#cf-room-field').hidden = fs.draft.mode !== 'in_person';
   const other = $('#cf-subject-other'), isOther = t.form?.elements.subject?.value === '__other';
   if (other && other.hidden === isOther) { other.hidden = !isOther; if (isOther) other.focus(); }
-  renderPickerResults(); renderAvail(); showPriceHint();
+  if (t.name === 'days') { fs.daysTouched = true; fs.days = new Set([...t.form.querySelectorAll('input[name=days]:checked')].map(x => Number(x.value))); }
+  if (t.name === 'date' && !fs.daysTouched) fs.days = null;   // follow the new start date's weekday
+  if (t.name === 'date' && t.form.elements.endDate) t.form.elements.endDate.min = t.value;
+  renderPickerResults(); renderAvail(); showPriceHint(); showRange();
 }
 function renderPicker() {
   const c = fs.draft;
@@ -3447,7 +3489,7 @@ function renderAvail() {
   const s = toMin(d.startTime), e = toMin(d.endTime);
   if (!(e > s)) { setAvail(box, `${head}<p class="bad">The end time must be after the start time.</p>`); return; }
   const exclude = fs.isEdit ? [fs.id] : [];
-  const dates = occurrenceDates(d.date, fs.isEdit ? 1 : fs.repeat);
+  const dates = formDates();
   const first = findConflicts(d, exclude);
   const line = (list, ok, bad) => list.length ? list.map(x => `<li class="bad">${icon('alert')}<span>${esc(bad(x))}</span></li>`).join('') : `<li class="good">${icon('check')}<span>${esc(ok)}</span></li>`;
   let html = `${head}<p class="avail-when">${fmtD(d.date, { weekday:'short', day:'numeric', month:'short' })}, ${hm(d.startTime)}–${hm(d.endTime)} (${fmtDur(e - s)})</p><ul class="checks">`;
@@ -3459,8 +3501,8 @@ function renderAvail() {
   if (dates.length > 1) {
     const later = dates.slice(1).map(date => ({ date, c:findConflicts({ ...d, date }, exclude) })).filter(r => r.c.length);
     html += later.length
-      ? `<h4 class="bad">Clashes in later weeks</h4><ul class="checks">${later.map(r => `<li class="bad">${icon('alert')}<span>${fmtD(r.date, { day:'numeric', month:'short' })}: ${esc(r.c.map(describeConflict).join('; '))}</span></li>`).join('')}</ul>`
-      : `<p class="good-note">All ${dates.length} weekly dates are clear.</p>`;
+      ? `<h4 class="bad">Clashes on later dates</h4><ul class="checks">${later.map(r => `<li class="bad">${icon('alert')}<span>${fmtD(r.date, { weekday:'short', day:'numeric', month:'short' })}: ${esc(r.c.map(describeConflict).join('; '))}</span></li>`).join('')}</ul>`
+      : `<p class="good-note">All ${dates.length} dates are clear.</p>`;
   }
   const starts = suggestStarts(d, exclude, e - s);
   const who = ['tutor', d.studentIds.length ? 'students' : '', d.mode === 'in_person' && d.room ? 'room' : ''].filter(Boolean).join(', ');
@@ -3474,13 +3516,19 @@ async function submitClassForm() {
   const d = fs.draft, errs = [];
   if (!d.subject.trim()) errs.push('Add a subject.');
   if (!d.date) errs.push('Pick a date.');
+  if (!fs.isEdit && fs.endDate && fs.endDate < d.date) errs.push('Date end must be on or after Date start.');
+  else if (!fs.isEdit && fs.endDate > d.date) {
+    const n = formDates().length;
+    if (!n) errs.push('No dates match. Pick at least one weekday under “Repeat on”.');
+    else if (n > MAX_SERIES) errs.push(`That’s more than ${MAX_SERIES} classes. Choose a shorter range.`);
+  }
   if (!d.startTime || !d.endTime) errs.push('Set a start and end time.');
   else if (toMin(d.endTime) <= toMin(d.startTime)) errs.push('The end time must be after the start time.');
   if (!d.tutorId) errs.push('Choose a tutor.');
   if (d.mode === 'online' && d.meetingLink && !safeUrl(d.meetingLink)) errs.push('The class link must be a full web address starting with https://');
   if (!errs.length) {
     const exclude = fs.isEdit ? [fs.id] : [];
-    const clashes = occurrenceDates(d.date, fs.isEdit ? 1 : fs.repeat).flatMap(date => findConflicts({ ...d, date }, exclude).map(x => ({ ...x, date })));
+    const clashes = formDates().flatMap(date => findConflicts({ ...d, date }, exclude).map(x => ({ ...x, date })));
     if (clashes.length) errs.push(`This time clashes. ${clashes.slice(0, 3).map(x => `${fmtD(x.date, { day:'numeric', month:'short' })}: ${describeConflict(x)}`).join('; ')}${clashes.length > 3 ? `; and ${clashes.length - 3} more` : ''}. Pick one of the free start times instead.`);
   }
   const box = $('#cf-error');
@@ -3503,15 +3551,15 @@ async function submitClassForm() {
     if (!r.ok) return;
     closeModal(true); toast('Changes saved.');
   } else {
-    const seriesId = fs.repeat > 1 ? Repo.newId('ser') : null;
-    const items = occurrenceDates(d.date, fs.repeat).map(date => ({
+    const dates = formDates(), seriesId = dates.length > 1 ? Repo.newId('ser') : null;
+    const items = dates.map(date => ({
       plan:{ ...plan, date, startAt:isoAt(date, d.startTime), endAt:isoAt(date, d.endTime), adminChecklist:emptyList('admin'), cancellations:{}, materials:[], seriesId },
       progress:{ status:'todo', attendance:{}, tutorChecklist:emptyList('tutor'), lessonNotes:'' },
     }));
     const r = await run(() => Repo.createClasses(items));
     if (!r.ok) return;
     closeModal(true);
-    toast(r.value.length > 1 ? `${r.value.length} weekly classes created.` : 'Class created.', { action:{ label:'Open', fn:() => openDrawer(r.value[0]) } });
+    toast(r.value.length > 1 ? `${r.value.length} classes created, ${fmtD(dates[0], { day:'numeric', month:'short' })} to ${fmtD(dates[dates.length - 1], { day:'numeric', month:'short' })}.` : 'Class created.', { action:{ label:'Open', fn:() => openDrawer(r.value[0]) } });
   }
 }
 async function closeModal(force = false) {
