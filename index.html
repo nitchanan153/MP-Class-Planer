@@ -600,6 +600,8 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .rate-in input{width:96px;text-align:right;font-variant-numeric:tabular-nums;padding:5px 7px}
 .stu-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
 .stu-tools .search{flex:0 1 260px}
+.row-del{color:var(--ink-3)}
+.row-del:hover{color:var(--red);background:#FDECEE}
 .swatch-btn{width:30px;height:24px;border-radius:5px;border:1px solid rgba(27,42,74,.25);background:var(--sw);cursor:pointer;display:inline-block;vertical-align:middle}
 .swatch-btn.none{background:linear-gradient(135deg,transparent 46%,#C9D0DB 46% 54%,transparent 54%),#fff}
 .swatch-btn:hover{outline:2px solid var(--focus);outline-offset:1px}
@@ -1693,6 +1695,14 @@ const Repo = (() => {
       ops.push(before ? { op:'update', col:'students', id:sid, patch:fields } : { op:'set', col:'students', id:sid, data:{ active:true, contact:'', ...fields } });
       if (before && fields.name && fields.name !== before.name) for (const [cid, c] of Object.entries(db.classes)) if (c.studentIds.includes(sid)) ops.push({ op:'update', col:'classes', id:cid, patch:{ [`studentNames.${sid}`]: fields.name } });
       await batch(ops); return sid;
+    },
+    /* Delete a student. They come off classes from `fromDate` on; earlier classes keep their name for billing. */
+    async deleteStudent(sid, fromDate) {
+      if (Cloud) await loadAll();
+      const ops = [{ op:'delete', col:'students', id:sid }];
+      for (const [cid, c] of Object.entries(db.classes)) if (c.studentIds.includes(sid) && c.date >= fromDate)
+        ops.push({ op:'update', col:'classes', id:cid, patch:{ studentIds:c.studentIds.filter(x => x !== sid), [`studentNames.${sid}`]:undefined, [`studentColors.${sid}`]:undefined, [`cancellations.${sid}`]:undefined, updatedAt:now() } });
+      return batch(ops);
     },
     saveSettings: patch => batch([{ op:'update', col:'settings', id:'app', patch }]),
     payments: () => Object.fromEntries(list('payments').map(x => [x.id, x])),
@@ -3833,6 +3843,7 @@ function studentsTabHTML() {
       <div class="search">${icon('search')}<input id="stu-q" type="search" value="${esc(ui.stuQ)}" placeholder="Find a student" aria-label="Find a student"></div>
       <span class="spacer"></span>
       ${missing ? `<button type="button" class="btn" data-action="auto-colour">Give colours to ${plural(missing, 'student')} without one</button>` : ''}
+      <button type="button" class="btn" data-action="export-students">${icon('file')}Export students (CSV)</button>
     </div>
     <form class="add-row" data-form="add-student">
       <input id="ns-name" name="name" type="text" placeholder="Student name" aria-label="Student name" aria-describedby="ns-dup">
@@ -3842,19 +3853,52 @@ function studentsTabHTML() {
       <button type="submit" class="btn btn-primary">${icon('plus')}Add student</button>
     </form>
     <p class="dup-note" id="ns-dup" role="status" hidden></p>
-    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>System</th><th>Year group</th><th>Contact</th><th>Special price per hour</th><th>Upcoming</th><th>Active</th></tr></thead><tbody>
+    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>System</th><th>Year group</th><th>Contact</th><th>Special price per hour</th><th>Upcoming</th><th>Active</th><th><span class="sr-only">Delete</span></th></tr></thead><tbody>
     ${list.map(s => `<tr class="${s.active === false ? 'archived' : ''}" data-name="${esc(s.name.toLowerCase())}" ${matchesStu(s) ? '' : 'hidden'}>
       <td><button type="button" class="swatch-btn${s.color ? '' : ' none'}" style="--sw:${s.color || '#fff'}" data-action="pick-colour" data-id="${s.id}" aria-label="Colour for ${esc(s.name)}: ${s.color || 'none'}. Change"></button></td>
       <td><input type="text" value="${esc(s.name)}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="name" aria-label="Name"></td>
       <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="system" aria-label="System of ${esc(s.name)}">${sysOpts(stuSystem(s))}</select></td>
       <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="yearGroup" aria-label="Year group of ${esc(s.name)}">${yearOptions(stuSystem(s), s.yearGroup)}</select></td>
       <td><input type="text" value="${esc(s.contact || '')}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="contact" aria-label="Contact for ${esc(s.name)}"></td>
-      <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${s.hourlyPrice ?? ''}" placeholder="Usual price" data-change="entity" data-entity="student" data-id="${s.id}" data-field="hourlyPrice" aria-label="Special price per hour for ${esc(s.name)}"></span></td>
+      <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${s.hourlyPrice ?? ''}" placeholder="Usual" data-change="entity" data-entity="student" data-id="${s.id}" data-field="hourlyPrice" aria-label="Special price per hour for ${esc(s.name)}"></span></td>
       <td>${plural(upcoming(s.id), 'class', 'classes')}</td>
       <td><input type="checkbox" ${s.active !== false ? 'checked' : ''} data-change="entity" data-entity="student" data-id="${s.id}" data-field="active" aria-label="${esc(s.name)} is active"></td>
+      <td><button type="button" class="btn btn-sm btn-ghost row-del" data-action="delete-student" data-id="${s.id}" aria-label="Delete ${esc(s.name)}" title="Delete ${esc(s.name)}">${icon('trash')}</button></td>
     </tr>`).join('')}
     </tbody></table></div>
-    <p class="hint" style="margin-top:10px">Each student’s colour shows on the board and calendar, so you can spot them at a glance. Contact details are admin-only; tutors see names and colours on their own classes. Leave the special price empty to charge the usual price for each class’s level (Tutors and rates); a special price applies to all of the student’s subjects.</p>`;
+    <p class="hint" style="margin-top:10px">Each student’s colour shows on the board and calendar, so you can spot them at a glance. Contact details are admin-only; tutors see names and colours on their own classes. Leave the special price empty to charge the usual price for each class’s level (Tutors and rates); a special price applies to all of the student’s subjects. Untick Active to hide a student who has stopped for now; delete only a name added by mistake or someone who has left.</p>`;
+}
+/* Every student with their details and classes, for Excel (UTF-8 with BOM so Thai names open correctly) */
+async function exportStudents() {
+  if (CLOUD) { toast('Collecting every class…'); const r = await run(() => Repo.loadAll()); if (!r.ok) return; }
+  const today = bkkNow().date, classes = Repo.classes();
+  const rows = [['Student ID', 'Name', 'System', 'Year group', 'Contact', 'Colour', 'Special price per hour (THB)', 'Active', 'Subjects', 'Tutors', 'Classes so far', 'Upcoming classes', 'First class', 'Last class', 'Next class']];
+  const list = Repo.students().sort((a, b) => a.name.localeCompare(b.name));
+  for (const st of list) {
+    const mine = classes.filter(c => c.studentIds.includes(st.id) && !c.tutorCancel && !ccOf(c, st.id)).sort(byStart);
+    const past = mine.filter(c => c.date < today), next = mine.filter(c => c.date >= today);
+    rows.push([st.id, st.name, stuSystem(st), stuYear(st), st.contact || '', st.color || '', st.hourlyPrice ?? '', st.active === false ? 'No' : 'Yes',
+      [...new Set(mine.map(c => c.subject).filter(Boolean))].sort().join('; '), [...new Set(mine.map(classTutor))].sort().join('; '),
+      past.length, next.length, mine[0]?.date || '', past.at(-1)?.date || '', next[0] ? `${next[0].date} ${hm(next[0].startTime)}` : '']);
+  }
+  downloadFile(`morpheus-students-${today}.csv`, csvText(rows), 'text/csv;charset=utf-8');
+  toast(`${plural(list.length, 'student')} exported. Open the file in Excel or Google Sheets.`);
+}
+async function deleteStudent(id) {
+  let s = Repo.student(id); if (!s) return;
+  if (CLOUD) { const r = await run(() => Repo.loadAll()); if (!r.ok) return; s = Repo.student(id) || s; }
+  const today = bkkNow().date, mine = Repo.classes().filter(c => c.studentIds.includes(id));
+  const next = mine.filter(c => c.date >= today), past = mine.length - next.length;
+  const body = [
+    next.length ? `${s.name} comes off ${plural(next.length, 'class', 'classes')} from today on.` : `${s.name} has no classes from today on.`,
+    past ? `${plural(past, 'earlier class', 'earlier classes')} keep the name, so bills and receipts stay as they are.` : '',
+    'This can’t be undone. If they might come back, untick Active instead.',
+  ].filter(Boolean).join(' ');
+  if (!await confirmDialog({ title:`Delete ${s.name}?`, body, ok:'Delete student', danger:true })) return;
+  const r = await run(() => Repo.deleteStudent(id, today));
+  if (!r.ok) return;
+  renderManage();
+  toast(`${s.name} deleted${next.length ? ` and taken off ${plural(next.length, 'upcoming class', 'upcoming classes')}` : ''}.`);
 }
 const matchesStu = s => !ui.stuQ.trim() || s.name.toLowerCase().includes(ui.stuQ.trim().toLowerCase());
 const sameName = (name, exceptId) => Repo.students().find(s => s.id !== exceptId && s.name.trim().toLowerCase() === String(name).trim().toLowerCase());
@@ -4293,6 +4337,8 @@ const actions = {
   'cal-nav': el => { const n = Number(el.dataset.dir), m = ui.cal.mode; ui.cal.date = m === 'month' ? addMonths(ui.cal.date, n) : addDays(ui.cal.date, m === 'week' ? 7 * n : n); renderMain(); },
   'rate-open': el => { ui.rateOpen ||= new Set(); const id = el.dataset.id; ui.rateOpen.has(id) ? ui.rateOpen.delete(id) : ui.rateOpen.add(id); renderManage(); $(`#modal-root [data-action="rate-open"][data-id="${CSS.escape(id)}"]`)?.focus(); },
   'cal-order': el => { ui.cal.order = el.dataset.order; saveUI(); renderMain(); },
+  'export-students': () => exportStudents(),
+  'delete-student': el => deleteStudent(el.dataset.id),
   'cal-find-go': el => {
     ui.cal.date = el.dataset.date; ui.tgKey = null; renderMain();
     const hit = $(`.cal-wrap .ev[data-id="${CSS.escape(el.dataset.id)}"]`);
