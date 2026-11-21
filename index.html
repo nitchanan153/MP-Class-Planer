@@ -213,6 +213,21 @@ body:not(.cloud) .cloud-only,body.cloud .local-only{display:none !important}
 .cal-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
 .cal-toolbar select{width:auto}
 .cal-title{font-size:20px;margin:0 6px}
+.cal-search{flex:0 1 260px;min-width:180px}
+.cal-find{border:1.5px solid var(--ink);border-radius:10px;background:var(--sheet);padding:8px 10px;margin:-2px 0 10px;font-size:13.5px}
+.find-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.find-head>span{flex:1 1 auto}
+.find-name{border:0;background:var(--hl);border-radius:4px;padding:1px 6px;font:inherit;font-weight:700;cursor:pointer;color:var(--ink)}
+.find-sub{font-size:12px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px}
+.find-list{display:flex;flex-wrap:wrap;gap:6px}
+.find-row{display:inline-flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;border:1px solid var(--rule);background:var(--paper);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;text-align:left;cursor:pointer;color:var(--ink)}
+.find-row:hover{border-color:var(--ink-2)}
+.cal-searching .ev:not(.hit){opacity:.18;filter:grayscale(.7)}
+.cal-searching .free{opacity:.35}
+.cal-searching .ev.hit{z-index:3;box-shadow:0 0 0 2px #fff,0 0 0 4.5px var(--ink)}
+.ev.flash{animation:evflash 1.5s ease-out}
+@keyframes evflash{0%,40%{box-shadow:0 0 0 2px #fff,0 0 0 9px var(--hl)}100%{box-shadow:0 0 0 2px #fff,0 0 0 4.5px var(--ink)}}
+@media (max-width:760px){ .cal-search{flex:1 1 100%} }
 .seg{display:inline-flex;border:1px solid var(--rule);border-radius:7px;overflow:hidden;background:#fff}
 .seg button{border:0;border-right:1px solid var(--rule);background:transparent;padding:6px 12px;font-weight:700;cursor:pointer;color:var(--ink-2);font-size:14px}
 .seg button:last-child{border-right:0}
@@ -1720,7 +1735,7 @@ const ui = {
   cal:{ mode:'week', date:null, order:'date', minGap:60 },
   billMonth:null, billTab:'students', billQ:'', acctFocus:null, selectMode:false, selected:new Set(), showAllDone:false, stuQ:'', popFor:null,
   openClassId:null, drawerEnter:false, msgKind:'reminder', msgDraft:null,
-  dragging:null, tgKey:null, manageTab:'tutors', confirmResolve:null, lastScreen:'', calTutors:[], notesBlocked:false, personalBlocked:false,
+  dragging:null, tgKey:null, manageTab:'tutors', confirmResolve:null, lastScreen:'', calTutors:[], notesBlocked:false, personalBlocked:false, calQ:'',
 };
 function loadUI() { try { const x = JSON.parse(localStorage.getItem(UI_KEY) || '{}'); if (x.view) ui.view = x.view; if (x.calMode) ui.cal.mode = x.calMode; if (x.calOrder) ui.cal.order = x.calOrder; if ([30, 60, 90, 120].includes(x.minGap)) ui.cal.minGap = x.minGap; if (Array.isArray(x.calTutors)) ui.calTutors = x.calTutors.filter(v => typeof v === 'string'); } catch {} }
 function saveUI() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view:ui.view, calMode:ui.cal.mode, calOrder:ui.cal.order, minGap:ui.cal.minGap, calTutors:ui.calTutors || [] })); } catch {} }
@@ -2022,6 +2037,7 @@ function renderMain() {
     }
     ui.tgKey = key;
   } else ui.tgKey = null;
+  if (ui.view === 'calendar') applyCalSearch();
 }
 
 /* ---------- Firebase: sign-in, first-run setup, loading ---------- */
@@ -2347,14 +2363,59 @@ function calendarHTML() {
         <button type="button" class="btn btn-sm" data-action="cal-nav" data-dir="1" aria-label="Next ${c.mode}">${icon('right')}</button>
       </div>
       <h2 class="cal-title">${title}</h2>
-      ${canPersonal() ? `<span class="spacer"></span><button type="button" class="btn btn-sm" data-action="new-pv">${icon('plus')}Personal time</button>` : ''}
+      <span class="spacer"></span>
+      <div class="search cal-search">${icon('search')}<input id="cal-q" type="search" value="${esc(ui.calQ)}" placeholder="Find a student" aria-label="Find a student in the calendar" autocomplete="off" aria-describedby="cal-find"></div>
+      ${canPersonal() ? `<button type="button" class="btn btn-sm" data-action="new-pv">${icon('plus')}Personal time</button>` : ''}
     </div>
+    <div id="cal-find" class="cal-find" role="status" aria-live="polite" hidden></div>
     ${calTutorPicker()}
     ${md ? monthBarHTML(md) : ''}
     <div class="legend"><span>Colour shows the student</span><span><i style="background:${NO_COLOUR}"></i>No colour set</span>${can('manage') ? '<button type="button" class="btn btn-sm" data-action="manage" data-tab="students">Set student colours</button>' : ''}${c.mode !== 'week' ? `<span><i class="free-swatch"></i>${md ? `Free for ${fmtDur(c.minGap)} or more` : 'Free'}</span>` : ''}${canPersonal() ? '<span><i class="pv-swatch"></i>Personal time (only you see it)</span>' : ''}<span class="hint">${hint}</span></div>
     ${calJumpHTML(c.mode === 'month' ? [monthStart(c.date), addDays(addMonths(c.date, 1), -1)] : c.mode === 'week' ? [ws, we] : [c.date, c.date])}
     ${md ? monthGridHTML(md) : c.mode === 'week' ? weekHTML() : dayHTML()}
   </div>`;
+}
+/* ---------- Find a student: highlights their classes in the calendar and lists the next ones ---------- */
+const calHit = (c, q) => c.title.toLowerCase().includes(q) || c.studentIds.some(sid => studentName(c, sid).toLowerCase().includes(q));
+function calViewRange() {
+  const c = ui.cal, ws = weekStart(c.date);
+  return c.mode === 'month' ? [monthStart(c.date), addDays(addMonths(c.date, 1), -1)] : c.mode === 'week' ? [ws, addDays(ws, 6)] : [c.date, c.date];
+}
+function applyCalSearch() {
+  const wrap = $('.cal-wrap'), box = $('#cal-find'); if (!wrap || !box) return;
+  const q = (ui.calQ || '').trim().toLowerCase();
+  wrap.classList.toggle('cal-searching', !!q);
+  if (!q) { for (const el of $$('.cal-wrap .ev.hit')) el.classList.remove('hit'); box.hidden = true; box.innerHTML = ''; return; }
+  const shown = calClasses().filter(c => calHit(c, q)), ids = new Set(shown.map(c => c.id));
+  for (const el of $$('.cal-wrap .ev')) el.classList.toggle('hit', el.dataset.action === 'open-class' && ids.has(el.dataset.id));
+  const [from, to] = calViewRange(), today = bkkNow().date, inView = shown.filter(c => c.date >= from && c.date <= to);
+  const others = can('assign') && calSel().length ? Repo.classes().filter(c => !calShows(c.tutorId) && calHit(c, q)).length : 0;
+  const names = [...new Set(shown.flatMap(c => c.studentIds.map(sid => studentName(c, sid))).filter(n => n.toLowerCase().includes(q)))].sort((a, b) => a.localeCompare(b));
+  const upcoming = shown.filter(c => c.date >= today && !isCancelled(c)).sort(byStart), list = upcoming.length ? upcoming.slice(0, 6) : shown.sort(byStart).slice(-3).reverse();
+  const row = c => `<button type="button" class="find-row" data-action="cal-find-go" data-date="${c.date}" data-id="${c.id}">
+      <strong>${fmtD(c.date, { weekday:'short', day:'numeric', month:'short' })}</strong><span>${hm(c.startTime)}–${hm(c.endTime)}</span><span>${esc(c.title)}</span><span class="muted">${esc([c.subject, classTutor(c)].filter(Boolean).join(', '))}</span></button>`;
+  box.hidden = false;
+  box.innerHTML = !shown.length && !others
+    ? `<span class="muted">No class with a student called “${esc(ui.calQ.trim())}” in the loaded months.</span><button type="button" class="btn btn-sm btn-quiet" data-action="cal-find-clear">Clear</button>`
+    : `<div class="find-head"><span><strong>${plural(inView.length, 'class', 'classes')}</strong> in this ${ui.cal.mode}${names.length ? ` for ${names.slice(0, 4).map(n => `<button type="button" class="find-name" data-action="cal-find-pick" data-name="${esc(n)}">${esc(n)}</button>`).join(', ')}${names.length > 4 ? ` and ${names.length - 4} more` : ''}` : ''}</span>
+        ${others ? `<button type="button" class="btn btn-sm" data-action="cal-tutor" data-id="">+${others} with other tutors: show all tutors</button>` : ''}
+        <button type="button" class="btn btn-sm btn-quiet" data-action="cal-find-clear">Clear</button></div>
+      ${list.length ? `<div class="find-sub">${upcoming.length ? 'Next classes' : 'Most recent classes'}</div><div class="find-list">${list.map(row).join('')}</div>` : ''}`;
+}
+/* scroll the calendar (not the page) so a class is in the middle of it */
+function scrollCalTo(el, smooth = true) {
+  const box = el?.closest('#mt, #tg'); if (!box) return;
+  const r = el.getBoundingClientRect(), cr = box.getBoundingClientRect();
+  box.scrollBy({ left:r.left - cr.left - (cr.width - r.width) / 2, top:r.top - cr.top - cr.height / 3, behavior:smooth ? 'smooth' : 'auto' });
+}
+/* after typing, bring the student's next class (or their latest one) into view */
+let calFindTimer = 0;
+function showFirstHit() {
+  clearTimeout(calFindTimer);
+  calFindTimer = setTimeout(() => {
+    const first = $('#cal-find .find-row')?.dataset.id, el = (first && $(`.cal-wrap .ev.hit[data-id="${CSS.escape(first)}"]`)) || $('.cal-wrap .ev.hit');
+    if (el) scrollCalTo(el);
+  }, 350);
 }
 function calJumpHTML([from, to]) {
   const all = calClasses();
@@ -4232,6 +4293,13 @@ const actions = {
   'cal-nav': el => { const n = Number(el.dataset.dir), m = ui.cal.mode; ui.cal.date = m === 'month' ? addMonths(ui.cal.date, n) : addDays(ui.cal.date, m === 'week' ? 7 * n : n); renderMain(); },
   'rate-open': el => { ui.rateOpen ||= new Set(); const id = el.dataset.id; ui.rateOpen.has(id) ? ui.rateOpen.delete(id) : ui.rateOpen.add(id); renderManage(); $(`#modal-root [data-action="rate-open"][data-id="${CSS.escape(id)}"]`)?.focus(); },
   'cal-order': el => { ui.cal.order = el.dataset.order; saveUI(); renderMain(); },
+  'cal-find-go': el => {
+    ui.cal.date = el.dataset.date; ui.tgKey = null; renderMain();
+    const hit = $(`.cal-wrap .ev[data-id="${CSS.escape(el.dataset.id)}"]`);
+    if (hit) { scrollCalTo(hit); hit.classList.add('flash'); setTimeout(() => hit.classList.remove('flash'), 1600); }
+  },
+  'cal-find-pick': el => { ui.calQ = el.dataset.name; const i = $('#cal-q'); if (i) i.value = ui.calQ; applyCalSearch(); showFirstHit(); },
+  'cal-find-clear': () => { ui.calQ = ''; const i = $('#cal-q'); if (i) { i.value = ''; i.focus(); } applyCalSearch(); },
   'cal-tutor': el => {
     const id = el.dataset.id, sel = calSel();
     ui.calTutors = !id ? [] : sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id];
@@ -4341,6 +4409,7 @@ function onInput(e) {
   if (t.id === 'stu-q') { ui.stuQ = t.value; filterStudentRows(); return; }
   if (t.id === 'ns-name') { showDupHint(t.value); return; }
   if (t.id === 'bill-q') { ui.billQ = t.value; filterBillRows(); return; }
+  if (t.id === 'cal-q') { ui.calQ = t.value; applyCalSearch(); if (t.value.trim()) showFirstHit(); return; }
   if (t.id === 'notes') {
     notesPending = { id:t.dataset.id, text:t.value };
     const s = $('#notes-status'); if (s) s.textContent = 'Saving…';
