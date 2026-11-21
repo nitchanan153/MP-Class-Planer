@@ -601,6 +601,13 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .stu-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
 .stu-tools .search{flex:0 1 260px}
 .row-del{color:var(--ink-3)}
+.pop-export{width:min(380px,calc(100vw - 16px));display:flex;flex-direction:column;gap:8px}
+.exp-opt{display:flex;flex-direction:column;gap:3px;text-align:left;border:1.5px solid var(--rule);background:var(--sheet);border-radius:9px;padding:10px 12px;font:inherit;color:var(--ink);cursor:pointer}
+.exp-opt:hover,.exp-opt:focus-visible{border-color:var(--ink)}
+.exp-opt span{font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.pop-export{padding-bottom:12px}
+.pop-export>.exp-opt,.pop-export>.hint{margin-left:12px;margin-right:12px}
+.pop-export .hint{margin-top:2px;margin-bottom:0}
 .lv-cell{display:flex;flex-direction:column;gap:3px;border-left:4px solid var(--qc);padding-left:6px;min-width:170px}
 .lv-price{font-size:12px;font-weight:700;color:var(--ink-2)}
 .row-del:hover{color:var(--red);background:#FDECEE}
@@ -2390,6 +2397,7 @@ function calendarHTML() {
       <h2 class="cal-title">${title}</h2>
       <span class="spacer"></span>
       <div class="search cal-search">${icon('search')}<input id="cal-q" type="search" value="${esc(ui.calQ)}" placeholder="Find a student" aria-label="Find a student in the calendar" autocomplete="off" aria-describedby="cal-find"></div>
+      <button type="button" class="btn btn-sm" data-action="cal-export-menu" aria-haspopup="dialog">${icon('file')}Export</button>
       ${canPersonal() ? `<button type="button" class="btn btn-sm" data-action="new-pv">${icon('plus')}Personal time</button>` : ''}
     </div>
     <div id="cal-find" class="cal-find" role="status" aria-live="polite" hidden></div>
@@ -3970,6 +3978,62 @@ function filterStudentRows() {
   const q = ui.stuQ.trim().toLowerCase();
   for (const tr of $$('#modal-root tr[data-name]')) tr.hidden = !!q && !tr.dataset.name.includes(q);
 }
+/* ---------- Calendar export: the month's timetable with prices, and what each student pays ---------- */
+function openExportPop(btn) {
+  const month = ui.cal.date.slice(0, 7), sel = can('assign') ? calSel() : [], admin = can('billing');
+  const who = sel.length ? ` (${sel.map(tutorName).join(', ')} only)` : '';
+  const root = $('#pop-root');
+  root.innerHTML = `<div class="pop pop-export" role="dialog" aria-modal="false" aria-labelledby="pop-t">
+    <div class="pop-head"><strong id="pop-t">Export ${monthName(month)}${esc(who)}</strong><button type="button" class="btn btn-sm btn-ghost" data-action="pop-close" aria-label="Close">${icon('x')}</button></div>
+    <button type="button" class="exp-opt" data-action="cal-export" data-kind="timetable"><strong>Timetable</strong><span>One row per student per class: date, time, hours, student, level, subject, tutor${admin ? ', price per hour and amount' : ''}.</span></button>
+    ${admin ? `<button type="button" class="exp-opt" data-action="cal-export" data-kind="totals"><strong>What each student pays</strong><span>One row per student per subject: classes and hours booked, price, credit from last month, and the amount to pay before the month starts.</span></button>` : ''}
+    <p class="hint">CSV files open in Excel or Google Sheets. Use the arrows next to Today to pick another month first.</p>
+  </div>`;
+  const pop = root.firstElementChild, r = btn.getBoundingClientRect();
+  const left = Math.max(8, Math.min(r.right - pop.offsetWidth, innerWidth - pop.offsetWidth - 8));
+  let top = r.bottom + 6; if (top + pop.offsetHeight > innerHeight - 8) top = Math.max(8, r.top - pop.offsetHeight - 6);
+  pop.style.left = `${left}px`; pop.style.top = `${top}px`;
+  ui.popFor = 'export';
+  pop.querySelector('.exp-opt')?.focus();
+}
+const CAL_STATUS = c => c.tutorCancel ? 'Cancelled by tutor' : STATUSES.find(x => x.id === c.status)?.label || c.status;
+async function exportCalendar(kind) {
+  closePop();
+  const month = ui.cal.date.slice(0, 7), admin = can('billing'), sel = can('assign') ? calSel() : [];
+  const inSel = c => !sel.length || sel.includes(c.tutorId);
+  if (CLOUD) {   // the month, and for credit every month before it
+    const first = Repo.settings().firstMonth || month, months = [];
+    for (let m = admin && kind === 'totals' && first < month ? first : month; m <= month; m = nextMonth(m)) months.push(m);
+    toast('Collecting the month’s classes…');
+    const r = await run(() => Repo.ensureMonths(months)); if (!r.ok) return;
+  }
+  const tag = sel.length ? `-${sel.map(id => tutorName(id).replace(/^(kru|khru)\s*/i, '').replace(/[^\w฀-๿-]+/g, '')).join('-')}` : '';
+  let rows, name;
+  if (kind === 'totals' && admin) {
+    const data = studentBillData(month).filter(r => !sel.length || r.lines.some(l => inSel(l.c)));
+    rows = [['Month', 'Student', 'System', 'Year group', 'Level', 'Subject', 'Tutor', 'Classes booked', 'Hours booked', 'Price per hour (THB)', 'Amount for the month (THB)', 'Credit from last month (hours)', 'Credit from last month (THB)', 'Hours to pay for', 'Amount to pay (THB)', 'Contact'],
+      ...data.map(r => { const s = Repo.student(r.sid), lv = r.lines.map(l => levelFor(l.c, r.sid)).find(Boolean);
+        return [month, r.name, s ? stuSystem(s) : '', r.year || '', lv ? qual(lv).label : '', r.subject, r.tutors.join('; '), r.lines.length, csvH(r.booked), r.price ?? '', csvAmt(r.bookedAmount), csvH(r.prevCredit), csvAmt(r.appliedAmount), csvH(r.paidMin), csvAmt(r.paidAmount), s?.contact || '']; })];
+    const tot = k => data.reduce((a, r) => a + (r[k] || 0), 0);
+    rows.push(['Total', '', '', '', '', '', '', data.reduce((a, r) => a + r.lines.length, 0), csvH(tot('booked')), '', csvAmt(tot('bookedAmount')), csvH(tot('prevCredit')), csvAmt(tot('appliedAmount')), csvH(tot('paidMin')), csvAmt(tot('paidAmount')), '']);
+    name = `students-to-pay-${month}${tag}.csv`;
+  } else {
+    const list = calClasses().filter(c => c.date.slice(0, 7) === month && inSel(c)).sort(byStart);
+    const head = ['Date', 'Weekday', 'Start', 'End', 'Hours', 'Student', 'System', 'Year group', 'Level', 'Subject', 'Tutor', 'Format', 'Status', 'Cancellation'];
+    rows = [admin ? [...head, 'Price per hour (THB)', 'Amount (THB)', 'Special price', 'Class ID'] : head];
+    for (const c of list) for (const sid of (c.studentIds.length ? c.studentIds : [null])) {
+      const s = sid && Repo.student(sid), mins = classMinutes(c), r = sid && ccOf(c, sid), lv = levelFor(c, sid);
+      const cancel = c.tutorCancel ? 'Tutor cancelled (not charged)' : r ? (r.charge ? 'CC late (charged)' : 'CC in time (not charged)') : '';
+      const charged = !c.tutorCancel && !(r && !r.charge), pr = admin && sid ? studentPrice(c, sid) : null;
+      const row = [c.date, wk(c.date), hm(c.startTime), hm(c.endTime), csvH(mins), sid ? studentName(c, sid) : '', s ? stuSystem(s) : boardOf(c), s ? stuYear(s) : classYearLabel(c), lv ? qual(lv).label : '', c.subject, classTutor(c), c.mode === 'online' ? 'Online' : c.mode === 'in_person' ? `In person${c.room ? `, ${c.room}` : ''}` : '', CAL_STATUS(c), cancel];
+      rows.push(admin ? [...row, pr?.price ?? '', csvAmt(charged && pr?.price != null ? mins / 60 * pr.price : null), pr?.special ? 'Yes' : '', c.id] : row);
+    }
+    if (admin) rows.push(['Total', '', '', '', csvH(list.reduce((a, c) => a + classMinutes(c) * Math.max(1, c.studentIds.length), 0)), '', '', '', '', '', '', '', '', '', '', csvAmt(rows.slice(1).reduce((a, r) => a + (Number(r[15]) || 0), 0)), '', '']);
+    name = `timetable-${month}${tag}.csv`;
+  }
+  downloadFile(name, csvText(rows), 'text/csv;charset=utf-8');
+  toast(`${name} downloaded (${plural(rows.length - 1 - (admin ? 1 : 0), 'row')}).`);
+}
 function openColourPop(btn) {
   const sid = btn.dataset.id, s = Repo.student(sid); if (!s) return;
   const cur = (s.color || '').toUpperCase();
@@ -4403,6 +4467,8 @@ const actions = {
   'rate-open': el => { ui.rateOpen ||= new Set(); const id = el.dataset.id; ui.rateOpen.has(id) ? ui.rateOpen.delete(id) : ui.rateOpen.add(id); renderManage(); $(`#modal-root [data-action="rate-open"][data-id="${CSS.escape(id)}"]`)?.focus(); },
   'cal-order': el => { ui.cal.order = el.dataset.order; saveUI(); renderMain(); },
   'export-students': () => exportStudents(),
+  'cal-export-menu': el => openExportPop(el),
+  'cal-export': el => exportCalendar(el.dataset.kind),
   'fill-levels': () => fillLevels(),
   'match-levels': () => matchLevels(),
   'delete-student': el => deleteStudent(el.dataset.id),
