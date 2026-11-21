@@ -782,9 +782,9 @@ const MPPM = 0.9; // month calendar pixels per minute
    change it in Manage → Tutors and rates (saved as settings.levelPrices). */
 const BOARDS = ['UK', 'US', 'University'];
 const QUALS = [
-  { id:'pre_igcse',  board:'UK',         label:'Pre-IGCSE',           note:'below Year 9', price:1200, color:'#3F88B8' },
-  { id:'igcse',      board:'UK',         label:'IGCSE',               note:'',             price:1300, color:'#2B5F9E' },
-  { id:'as_a_level', board:'UK',         label:'AS / A-level',        note:'',             price:1500, color:'#8A3A73' },
+  { id:'pre_igcse',  board:'UK',         label:'Pre-IGCSE',           note:'Year 9 and below', price:1200, color:'#3F88B8' },
+  { id:'igcse',      board:'UK',         label:'IGCSE',               note:'Year 10–11',       price:1300, color:'#2B5F9E' },
+  { id:'as_a_level', board:'UK',         label:'AS / A-level',        note:'Year 12–13',       price:1500, color:'#8A3A73' },
   { id:'my_6_7',     board:'US',         label:'Middle Years G6–7',   note:'Grade 6–7',    price:1200, color:'#2F8A57' },
   { id:'my_8_9',     board:'US',         label:'Middle Years G8–9',   note:'Grade 8–9',    price:1300, color:'#A87406' },
   { id:'ib_a_level', board:'US',         label:'IB / A-level G11–12', note:'Grade 11–12',  price:1500, color:'#B4532A' },
@@ -829,8 +829,8 @@ const AUTO_COLOURS = (() => {
 })();
 const NO_COLOUR = '#8C96A8';
 const isHex = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
-/* Used only when importing: below Year 9 Pre-IGCSE, Y9–11 IGCSE, Y12–13 AS / A-level */
-const yearToQual = y => !y ? '' : y <= 8 ? 'pre_igcse' : y <= 11 ? 'igcse' : 'as_a_level';
+/* Used only when importing: Year 9 and below Pre-IGCSE, Y10–11 IGCSE, Y12–13 AS / A-level */
+const yearToQual = y => !y ? '' : y <= 9 ? 'pre_igcse' : y <= 11 ? 'igcse' : 'as_a_level';
 /* Year groups per system: UK Year 5–13, US Grade 5–12, University Year 1–4 (stored as the number) */
 const YEAR_RANGES = { UK:[5,6,7,8,9,10,11,12,13], US:[5,6,7,8,9,10,11,12], University:[1,2,3,4] };
 const yearsFor = sys => YEAR_RANGES[sys] || YEAR_RANGES.UK;
@@ -853,7 +853,7 @@ function suggestQual(sys, y) {
   if (sys === 'University') return 'university';
   if (!y) return null;
   if (sys === 'US') return y <= 7 ? 'my_6_7' : y <= 9 ? 'my_8_9' : y >= 11 ? 'ib_a_level' : null;
-  return y <= 8 ? 'pre_igcse' : y <= 11 ? 'igcse' : 'as_a_level';
+  return y <= 9 ? 'pre_igcse' : y <= 11 ? 'igcse' : 'as_a_level';   // IGCSE is Year 10–11, AS / A-level Year 12–13
 }
 const SUBJECTS = ['Mathematics','Additional Mathematics','Further Mathematics','Physics','Chemistry','Biology','Combined Science','English Language','English Literature','English as a Second Language','Economics','Business','Accounting','Computer Science','Psychology','Geography','History','Thai','Chinese'];
 const STATUSES = [
@@ -3855,6 +3855,7 @@ function studentsTabHTML() {
   const upcoming = id => Repo.classes().filter(c => c.date >= today && c.studentIds.includes(id)).length;
   const missing = list.filter(s => s.active !== false && !s.color).length;
   const noLevel = list.filter(s => s.active !== false && !stuLevel(s) && inferLevel(s)).length;
+  const off = levelMismatches(list);
   const lvOpts = s => { const cur = stuLevel(s); return `<option value="" ${cur ? '' : 'selected'}>Not set</option>` + QUALS.filter(q => q.board === stuSystem(s)).map(q => `<option value="${q.id}" ${q.id === cur ? 'selected' : ''} title="${esc(qualName(q))}">${esc(q.label)}</option>`).join(''); };
   const lvPrice = s => { const l = stuLevel(s), pr = s.hourlyPrice ?? (l ? levelPrice(l) : null); return pr != null ? `${money(pr)}/h${s.hourlyPrice != null ? ' <span class="muted">special</span>' : ''}` : ''; };
   return `<div class="stu-tools">
@@ -3863,6 +3864,7 @@ function studentsTabHTML() {
       ${missing ? `<button type="button" class="btn" data-action="auto-colour">Give colours to ${plural(missing, 'student')} without one</button>` : ''}
       <button type="button" class="btn" data-action="export-students">${icon('file')}Export students (CSV)</button>
     </div>
+    ${off.length ? `<div class="notice"><span>${plural(off.length, 'student’s level doesn’t', 'students’ levels don’t')} match their year group (${off.slice(0, 3).map(x => esc(`${x.s.name}: ${stuYear(x.s)}, ${qual(stuLevel(x.s)).label}`)).join('; ')}${off.length > 3 ? '; …' : ''}).</span><button type="button" class="btn btn-sm" data-action="match-levels">Match to year group</button></div>` : ''}
     ${noLevel ? `<div class="notice"><span>${plural(noLevel, 'student has', 'students have')} no level yet. Fill it in from their classes (or their year group), then check the ones that look wrong.</span><button type="button" class="btn btn-sm" data-action="fill-levels">Fill levels</button></div>` : ''}
     <form class="add-row" data-form="add-student">
       <input id="ns-name" name="name" type="text" placeholder="Student name" aria-label="Student name" aria-describedby="ns-dup">
@@ -3922,6 +3924,25 @@ async function deleteStudent(id) {
   toast(`${s.name} deleted${next.length ? ` and taken off ${plural(next.length, 'upcoming class', 'upcoming classes')}` : ''}.`);
 }
 const nsLevelOpts = (sys, cur) => `<option value="">Level</option>` + QUALS.filter(q => q.board === sys).map(q => `<option value="${q.id}" ${q.id === cur ? 'selected' : ''}>${esc(qualName(q))}</option>`).join('');
+/* active students whose level isn't the usual one for their year group */
+const levelMismatches = list => list.filter(s => s.active !== false && stuLevel(s) && s.yearGroup).map(s => ({ s, want:suggestQual(stuSystem(s), s.yearGroup) })).filter(x => x.want && x.want !== stuLevel(x.s));
+async function matchLevels() {
+  if (CLOUD) { toast('Collecting every class…'); const r = await run(() => Repo.loadAll()); if (!r.ok) return; }
+  const off = levelMismatches(Repo.students()); if (!off.length) { renderManage(); return; }
+  const today = bkkNow().date, classIds = new Map();
+  for (const { s, want } of off) for (const c of Repo.classes()) if (c.date >= today && c.studentIds.includes(s.id) && classLevel(c) !== want) classIds.set(c.id, want);
+  const ok = await confirmDialog({ title:`Match ${plural(off.length, 'student')} to their year group?`,
+    body:`${off.slice(0, 6).map(x => `${x.s.name}: ${qual(stuLevel(x.s)).label} → ${qual(x.want).label}`).join('; ')}${off.length > 6 ? '; and more' : ''}. ${classIds.size ? `${plural(classIds.size, 'upcoming class', 'upcoming classes')} ${classIds.size === 1 ? 'changes' : 'change'} level too, so the price follows.` : 'No upcoming classes change.'} Past classes stay as they are.`,
+    ok:'Match levels' });
+  if (!ok) return;
+  const byLevel = {}; for (const [id, l] of classIds) (byLevel[l] ||= []).push(id);
+  const r = await run(async () => {
+    for (const { s, want } of off) await Repo.saveStudent({ id:s.id, level:want });
+    for (const [l, ids] of Object.entries(byLevel)) await Repo.setClassesLevel(ids, l);
+  });
+  if (!r.ok) return;
+  renderManage(); toast(`${plural(off.length, 'student')} and ${plural(classIds.size, 'upcoming class', 'upcoming classes')} matched to their year group.`);
+}
 async function fillLevels() {
   if (CLOUD) { toast('Collecting every class…'); const r = await run(() => Repo.loadAll()); if (!r.ok) return; }
   const todo = Repo.students().filter(s => !stuLevel(s)).map(s => [s, inferLevel(s)]).filter(([, l]) => l);
@@ -4383,6 +4404,7 @@ const actions = {
   'cal-order': el => { ui.cal.order = el.dataset.order; saveUI(); renderMain(); },
   'export-students': () => exportStudents(),
   'fill-levels': () => fillLevels(),
+  'match-levels': () => matchLevels(),
   'delete-student': el => deleteStudent(el.dataset.id),
   'cal-find-go': el => {
     ui.cal.date = el.dataset.date; ui.tgKey = null; renderMain();
