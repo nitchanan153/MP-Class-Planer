@@ -579,7 +579,7 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .notice{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:8px;background:var(--amber-soft);color:#6E4304;margin-bottom:14px;font-size:14px}
 .add-row{display:grid;grid-template-columns:1.3fr .7fr 1.4fr auto;gap:8px;margin-bottom:14px;padding:12px;background:var(--paper);border-radius:8px}
 .add-row.tutors{grid-template-columns:1.3fr .8fr 1.5fr auto}
-.add-row[data-form=add-student]{grid-template-columns:1.3fr .65fr .75fr 1.3fr auto}
+.add-row[data-form=add-student]{grid-template-columns:1.2fr .6fr .7fr .9fr 1.1fr auto}
 .tbl select[data-field=system]{min-width:118px}
 .tbl select[data-field=yearGroup]{min-width:132px}
 .table-wrap{overflow-x:auto}
@@ -601,6 +601,8 @@ button.free:hover{background:rgba(34,96,211,.12);border-color:var(--focus)}
 .stu-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
 .stu-tools .search{flex:0 1 260px}
 .row-del{color:var(--ink-3)}
+.lv-cell{display:flex;flex-direction:column;gap:3px;border-left:4px solid var(--qc);padding-left:6px;min-width:170px}
+.lv-price{font-size:12px;font-weight:700;color:var(--ink-2)}
 .row-del:hover{color:var(--red);background:#FDECEE}
 .swatch-btn{width:30px;height:24px;border-radius:5px;border:1px solid rgba(27,42,74,.25);background:var(--sw);cursor:pointer;display:inline-block;vertical-align:middle}
 .swatch-btn.none{background:linear-gradient(135deg,transparent 46%,#C9D0DB 46% 54%,transparent 54%),#fff}
@@ -736,7 +738,7 @@ body.has-bulkbar .toasts{bottom:86px}
                              tutorId (set by an admin when linking), email, displayName
    tutors/{tutorId}          name, active, email (Google sign-in, lower case), linkedUid (null until linked)
    tutorRates/{tutorId}      hourlyRate, currency            ADMIN ONLY (tutors can't read)
-   students/{studentId}      name, system ('UK' | 'US' | 'University'), yearGroup, contact, color, hourlyPrice, active   ADMIN ONLY
+   students/{studentId}      name, system ('UK' | 'US' | 'University'), yearGroup, level (a QUALS id), contact, color, hourlyPrice, active   ADMIN ONLY
    settings/app              schoolName, timezone, dayStart, dayEnd, rooms[],
                              ccDeadline 'HH:mm' (day before the class), payTutorLateCC, defaultStudentPrice,
                              docName, docDetails (header of pay slips and receipts)
@@ -835,6 +837,17 @@ const yearsFor = sys => YEAR_RANGES[sys] || YEAR_RANGES.UK;
 const yearLabel = (sys, y) => !y ? '' : sys === 'US' ? `Grade ${y}` : sys === 'University' ? `Uni Year ${y}` : `Year ${y}`;
 const stuSystem = s => BOARDS.includes(s?.system) ? s.system : 'UK';
 const stuYear = s => yearLabel(stuSystem(s), s?.yearGroup);
+/* a student's level, if it belongs to their system */
+const stuLevel = s => { const q = qual(s?.level); return q.id && q.board === stuSystem(s) ? q.id : null; };
+/* the level a student's classes mostly have, or the usual one for their system and year */
+function inferLevel(s) {
+  const n = {};
+  for (const c of Repo.classes()) if (c.studentIds.includes(s.id)) { const l = classLevel(c); if (l && qual(l).board === stuSystem(s)) n[l] = (n[l] || 0) + 1; }
+  const best = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0] : suggestQual(stuSystem(s), s.yearGroup);
+}
+/* the level used for prices: the class's level, or else its students' level */
+const levelFor = (c, sid) => classLevel(c) || (sid ? stuLevel(Repo.student(sid)) : c.studentIds.map(x => stuLevel(Repo.student(x))).find(Boolean)) || null;
 /* the usual level for a system and year group (null when there isn't an obvious one) */
 function suggestQual(sys, y) {
   if (sys === 'University') return 'university';
@@ -1696,6 +1709,8 @@ const Repo = (() => {
       if (before && fields.name && fields.name !== before.name) for (const [cid, c] of Object.entries(db.classes)) if (c.studentIds.includes(sid)) ops.push({ op:'update', col:'classes', id:cid, patch:{ [`studentNames.${sid}`]: fields.name } });
       await batch(ops); return sid;
     },
+    /* Set the level (and its exam board) on several classes */
+    setClassesLevel: (ids, level) => batch(ids.map(id => ({ op:'update', col:'classes', id, patch:{ qualification:level, examBoard:qual(level).board, updatedAt:now() } }))),
     /* Delete a student. They come off classes from `fromDate` on; earlier classes keep their name for billing. */
     async deleteStudent(sid, fromDate) {
       if (Cloud) await loadAll();
@@ -1829,7 +1844,7 @@ function rateFor(tutorId, level) {
 function studentPrice(c, sid) {
   const s = Repo.student(sid);
   if (s?.hourlyPrice != null) return { price:s.hourlyPrice, special:true };
-  const r = rateFor(c.tutorId, classLevel(c));
+  const r = rateFor(c.tutorId, levelFor(c, sid));
   return { price:r.price ?? Repo.settings().defaultStudentPrice ?? null, special:false };
 }
 const ccDeadlineIso = date => isoAt(addDays(date, -1), Repo.settings().ccDeadline || '20:00');
@@ -2691,7 +2706,7 @@ function tutorPayData(month) {
   return Repo.tutors().filter(t => t.active !== false || inMonth.some(c => c.tutorId === t.id)).sort((a, b) => a.name.localeCompare(b.name)).map(t => {
     const lines = inMonth.filter(c => c.tutorId === t.id).sort(byStart).map(c => {
       const kind = c.tutorCancel ? 'cancelled' : isCancelled(c) ? (st.payTutorLateCC && c.studentIds.some(sid => ccOf(c, sid).charge) ? 'latePaid' : 'cancelled') : c.status === 'completed' ? 'taught' : 'open';
-      const mins = classMinutes(c), paid = kind === 'taught' || kind === 'latePaid', level = classLevel(c), rate = rateFor(t.id, level).pay;
+      const mins = classMinutes(c), paid = kind === 'taught' || kind === 'latePaid', level = levelFor(c), rate = rateFor(t.id, level).pay;
       return { c, mins, kind, paid, level, rate, amount:paid && rate != null ? mins / 60 * rate : null };
     });
     const count = k => lines.filter(l => l.kind === k).length, mins = f => lines.filter(f).reduce((a, l) => a + l.mins, 0);
@@ -3455,11 +3470,11 @@ function yearOptions(sys, cur) {
     + (n && !ys.includes(n) ? `<option value="${n}" selected>${yearLabel(sys, n)}</option>` : '');
 }
 /* set exam board, year group and (unless chosen by hand) the qualification, keeping the selects in step */
-function applyLevel(f, sys, year) {
+function applyLevel(f, sys, year, level = null) {
   const d = fs.draft, y = year && yearsFor(sys).includes(Number(year)) ? Number(year) : null;
   f.elements.examBoard.value = sys; d.examBoard = sys;
   f.elements.yearGroup.innerHTML = yearOptions(sys, y); d.yearGroup = y;
-  const q = suggestQual(sys, y), cur = f.elements.qualification.value;
+  const q = level || suggestQual(sys, y), cur = f.elements.qualification.value;
   const keep = fs.qualTouched && QUALS.some(x => x.id === cur && x.board === sys);
   f.elements.qualification.innerHTML = qualOptions(sys, keep ? cur : q || QUALS.find(x => x.board === sys)?.id || '');
   d.qualification = f.elements.qualification.value;
@@ -3568,7 +3583,7 @@ function onStudentSelect(sel) {
 function pickStudent(sid) {
   if (!fs.draft.studentIds.includes(sid)) fs.draft.studentIds.push(sid);
   const s = Repo.student(sid);
-  if (fs.draft.studentIds.length === 1 && s && !fs.isEdit) { fs.qualTouched = false; applyLevel($('#class-form'), stuSystem(s), s.yearGroup); showPriceHint(); }
+  if (fs.draft.studentIds.length === 1 && s && !fs.isEdit) { fs.qualTouched = false; applyLevel($('#class-form'), stuSystem(s), s.yearGroup, stuLevel(s)); showPriceHint(); }
   fs.dirty = true;
   renderPicker(); renderAvail();
 }
@@ -3582,7 +3597,7 @@ async function createNewStudent() {
   const input = $('#cf-new-name'), name = input?.value.trim(); if (!name) { input?.focus(); return; }
   const dup = sameName(name);
   if (dup && !await confirmDialog({ title:`There’s already a student called “${dup.name}”`, body:'Two students with the same name are easy to mix up. Go back and add a word after the name, or add them anyway.', ok:'Add anyway' })) { input.focus(); return; }
-  const r = await run(() => Repo.saveStudent({ name, system:fs.draft.examBoard || 'UK', yearGroup:fs.draft.yearGroup ? Number(fs.draft.yearGroup) : null, contact:'' }));
+  const r = await run(() => Repo.saveStudent({ name, system:fs.draft.examBoard || 'UK', yearGroup:fs.draft.yearGroup ? Number(fs.draft.yearGroup) : null, level:fs.draft.qualification || null, contact:'' }));
   if (!r.ok) return;
   input.value = ''; $('#cf-new').hidden = true; showNewDup('');
   pickStudent(r.value);
@@ -3839,26 +3854,32 @@ function studentsTabHTML() {
   const sysOpts = cur => BOARDS.map(b => `<option value="${b}" ${b === cur ? 'selected' : ''}>${b}</option>`).join('');
   const upcoming = id => Repo.classes().filter(c => c.date >= today && c.studentIds.includes(id)).length;
   const missing = list.filter(s => s.active !== false && !s.color).length;
+  const noLevel = list.filter(s => s.active !== false && !stuLevel(s) && inferLevel(s)).length;
+  const lvOpts = s => { const cur = stuLevel(s); return `<option value="" ${cur ? '' : 'selected'}>Not set</option>` + QUALS.filter(q => q.board === stuSystem(s)).map(q => `<option value="${q.id}" ${q.id === cur ? 'selected' : ''} title="${esc(qualName(q))}">${esc(q.label)}</option>`).join(''); };
+  const lvPrice = s => { const l = stuLevel(s), pr = s.hourlyPrice ?? (l ? levelPrice(l) : null); return pr != null ? `${money(pr)}/h${s.hourlyPrice != null ? ' <span class="muted">special</span>' : ''}` : ''; };
   return `<div class="stu-tools">
       <div class="search">${icon('search')}<input id="stu-q" type="search" value="${esc(ui.stuQ)}" placeholder="Find a student" aria-label="Find a student"></div>
       <span class="spacer"></span>
       ${missing ? `<button type="button" class="btn" data-action="auto-colour">Give colours to ${plural(missing, 'student')} without one</button>` : ''}
       <button type="button" class="btn" data-action="export-students">${icon('file')}Export students (CSV)</button>
     </div>
+    ${noLevel ? `<div class="notice"><span>${plural(noLevel, 'student has', 'students have')} no level yet. Fill it in from their classes (or their year group), then check the ones that look wrong.</span><button type="button" class="btn btn-sm" data-action="fill-levels">Fill levels</button></div>` : ''}
     <form class="add-row" data-form="add-student">
       <input id="ns-name" name="name" type="text" placeholder="Student name" aria-label="Student name" aria-describedby="ns-dup">
       <select id="ns-system" name="system" data-change="ns-system" aria-label="System">${sysOpts(ui.nsSystem || 'UK')}</select>
-      <select id="ns-year" name="yearGroup" aria-label="Year group">${yearOptions(ui.nsSystem || 'UK', null).replace('>Not set<', '>Year group<')}</select>
+      <select id="ns-year" name="yearGroup" data-change="ns-year" aria-label="Year group">${yearOptions(ui.nsSystem || 'UK', null).replace('>Not set<', '>Year group<')}</select>
+      <select id="ns-level" name="level" data-change="ns-level" aria-label="Level">${nsLevelOpts(ui.nsSystem || 'UK', '')}</select>
       <input name="contact" type="text" placeholder="LINE ID, phone or parent contact" aria-label="Contact">
       <button type="submit" class="btn btn-primary">${icon('plus')}Add student</button>
     </form>
     <p class="dup-note" id="ns-dup" role="status" hidden></p>
-    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>System</th><th>Year group</th><th>Contact</th><th>Special price per hour</th><th>Upcoming</th><th>Active</th><th><span class="sr-only">Delete</span></th></tr></thead><tbody>
+    <div class="table-wrap"><table class="tbl"><thead><tr><th>Colour</th><th>Name</th><th>System</th><th>Year group</th><th>Level and price</th><th>Contact</th><th>Special price per hour</th><th>Upcoming</th><th>Active</th><th><span class="sr-only">Delete</span></th></tr></thead><tbody>
     ${list.map(s => `<tr class="${s.active === false ? 'archived' : ''}" data-name="${esc(s.name.toLowerCase())}" ${matchesStu(s) ? '' : 'hidden'}>
       <td><button type="button" class="swatch-btn${s.color ? '' : ' none'}" style="--sw:${s.color || '#fff'}" data-action="pick-colour" data-id="${s.id}" aria-label="Colour for ${esc(s.name)}: ${s.color || 'none'}. Change"></button></td>
       <td><input type="text" value="${esc(s.name)}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="name" aria-label="Name"></td>
       <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="system" aria-label="System of ${esc(s.name)}">${sysOpts(stuSystem(s))}</select></td>
       <td><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="yearGroup" aria-label="Year group of ${esc(s.name)}">${yearOptions(stuSystem(s), s.yearGroup)}</select></td>
+      <td><div class="lv-cell" style="--qc:${qual(stuLevel(s)).color}"><select data-change="entity" data-entity="student" data-id="${s.id}" data-field="level" aria-label="Level of ${esc(s.name)}">${lvOpts(s)}</select><span class="lv-price">${lvPrice(s)}</span></div></td>
       <td><input type="text" value="${esc(s.contact || '')}" data-change="entity" data-entity="student" data-id="${s.id}" data-field="contact" aria-label="Contact for ${esc(s.name)}"></td>
       <td><span class="rate-in">฿<input type="number" min="0" step="50" value="${s.hourlyPrice ?? ''}" placeholder="Usual" data-change="entity" data-entity="student" data-id="${s.id}" data-field="hourlyPrice" aria-label="Special price per hour for ${esc(s.name)}"></span></td>
       <td>${plural(upcoming(s.id), 'class', 'classes')}</td>
@@ -3872,12 +3893,12 @@ function studentsTabHTML() {
 async function exportStudents() {
   if (CLOUD) { toast('Collecting every class…'); const r = await run(() => Repo.loadAll()); if (!r.ok) return; }
   const today = bkkNow().date, classes = Repo.classes();
-  const rows = [['Student ID', 'Name', 'System', 'Year group', 'Contact', 'Colour', 'Special price per hour (THB)', 'Active', 'Subjects', 'Tutors', 'Classes so far', 'Upcoming classes', 'First class', 'Last class', 'Next class']];
+  const rows = [['Student ID', 'Name', 'System', 'Year group', 'Level', 'Usual price per hour (THB)', 'Contact', 'Colour', 'Special price per hour (THB)', 'Active', 'Subjects', 'Tutors', 'Classes so far', 'Upcoming classes', 'First class', 'Last class', 'Next class']];
   const list = Repo.students().sort((a, b) => a.name.localeCompare(b.name));
   for (const st of list) {
     const mine = classes.filter(c => c.studentIds.includes(st.id) && !c.tutorCancel && !ccOf(c, st.id)).sort(byStart);
     const past = mine.filter(c => c.date < today), next = mine.filter(c => c.date >= today);
-    rows.push([st.id, st.name, stuSystem(st), stuYear(st), st.contact || '', st.color || '', st.hourlyPrice ?? '', st.active === false ? 'No' : 'Yes',
+    rows.push([st.id, st.name, stuSystem(st), stuYear(st), stuLevel(st) ? qual(stuLevel(st)).label : '', stuLevel(st) ? levelPrice(stuLevel(st)) ?? '' : '', st.contact || '', st.color || '', st.hourlyPrice ?? '', st.active === false ? 'No' : 'Yes',
       [...new Set(mine.map(c => c.subject).filter(Boolean))].sort().join('; '), [...new Set(mine.map(classTutor))].sort().join('; '),
       past.length, next.length, mine[0]?.date || '', past.at(-1)?.date || '', next[0] ? `${next[0].date} ${hm(next[0].startTime)}` : '']);
   }
@@ -3899,6 +3920,22 @@ async function deleteStudent(id) {
   if (!r.ok) return;
   renderManage();
   toast(`${s.name} deleted${next.length ? ` and taken off ${plural(next.length, 'upcoming class', 'upcoming classes')}` : ''}.`);
+}
+const nsLevelOpts = (sys, cur) => `<option value="">Level</option>` + QUALS.filter(q => q.board === sys).map(q => `<option value="${q.id}" ${q.id === cur ? 'selected' : ''}>${esc(qualName(q))}</option>`).join('');
+async function fillLevels() {
+  if (CLOUD) { toast('Collecting every class…'); const r = await run(() => Repo.loadAll()); if (!r.ok) return; }
+  const todo = Repo.students().filter(s => !stuLevel(s)).map(s => [s, inferLevel(s)]).filter(([, l]) => l);
+  if (!todo.length) { renderManage(); return; }
+  const r = await run(() => Promise.all(todo.map(([s, level]) => Repo.saveStudent({ id:s.id, level }))));
+  if (!r.ok) return;
+  renderManage(); toast(`Levels filled in for ${plural(todo.length, 'student')}. Check them in the Level column.`);
+}
+/* after a student's level changes: offer to move their upcoming classes to it, so the price follows */
+function offerClassLevel(sid) {
+  const s = Repo.student(sid), level = stuLevel(s); if (!level) return;
+  const today = bkkNow().date, ids = Repo.classes().filter(c => c.date >= today && c.studentIds.includes(sid) && classLevel(c) !== level).map(c => c.id);
+  toast(`${s.name} is now ${qual(level).label} (${levelPrice(level) != null ? `${money(levelPrice(level))}/h` : 'no usual price yet'}).${ids.length ? ` ${plural(ids.length, 'upcoming class has', 'upcoming classes have')} another level.` : ''}`,
+    ids.length ? { action:{ label:`Change ${plural(ids.length, 'class', 'classes')}`, fn:async () => { const r = await run(() => Repo.setClassesLevel(ids, level)); if (r.ok) toast(`${plural(ids.length, 'class', 'classes')} changed to ${qual(level).label}.`); } } } : {});
 }
 const matchesStu = s => !ui.stuQ.trim() || s.name.toLowerCase().includes(ui.stuQ.trim().toLowerCase());
 const sameName = (name, exceptId) => Repo.students().find(s => s.id !== exceptId && s.name.trim().toLowerCase() === String(name).trim().toLowerCase());
@@ -4008,10 +4045,16 @@ async function onEntityChange(el) {
       toast(`${before.name} is inactive${before.linkedUid ? ' and their account is unlinked' : ''}.${n ? ` Reassign their ${plural(n, 'upcoming class', 'upcoming classes')}.` : ''}`);
     }
   } else {
+    if (field === 'level') v = v || null;
     const patch = { [field]:v };
-    if (field === 'system') { const s = Repo.student(id); if (s?.yearGroup && !yearsFor(v).includes(s.yearGroup)) patch.yearGroup = null; }   // a year that doesn't exist in the new system
+    if (field === 'system') {   // a year or level that doesn't exist in the new system
+      const s = Repo.student(id);
+      if (s?.yearGroup && !yearsFor(v).includes(s.yearGroup)) patch.yearGroup = null;
+      if (s?.level && qual(s.level).board !== v) patch.level = null;
+    }
     const r = await run(() => Repo.saveStudent({ id, ...patch }));
     if (!r.ok) { renderManage(); return; }
+    if (field === 'level' && v) offerClassLevel(id);
   }
   if (el.type === 'checkbox' || el.tagName === 'SELECT') renderManage();
 }
@@ -4204,7 +4247,8 @@ async function onFormSubmit(form) {
     const dup = sameName(name);
     if (dup && !await confirmDialog({ title:`There’s already a student called “${dup.name}”`, body:'Two students with the same name are easy to mix up on the calendar and on receipts. Go back and add a word after the name, or add them anyway.', ok:'Add anyway' })) { $('#ns-name')?.focus(); return; }
     const system = BOARDS.includes(fd.get('system')) ? fd.get('system') : 'UK';
-    const r = await run(() => Repo.saveStudent({ name, system, yearGroup:fd.get('yearGroup') ? Number(fd.get('yearGroup')) : null, contact:String(fd.get('contact') || '').trim() }));
+    const level = QUALS.some(q => q.id === fd.get('level') && q.board === system) ? fd.get('level') : null;
+    const r = await run(() => Repo.saveStudent({ name, system, yearGroup:fd.get('yearGroup') ? Number(fd.get('yearGroup')) : null, level, contact:String(fd.get('contact') || '').trim() }));
     if (!r.ok) return;
     renderManage(); toast(`${name} added.`); $('[data-form="add-student"] input[name=name]')?.focus();
   } else if (kind === 'settings') {
@@ -4338,6 +4382,7 @@ const actions = {
   'rate-open': el => { ui.rateOpen ||= new Set(); const id = el.dataset.id; ui.rateOpen.has(id) ? ui.rateOpen.delete(id) : ui.rateOpen.add(id); renderManage(); $(`#modal-root [data-action="rate-open"][data-id="${CSS.escape(id)}"]`)?.focus(); },
   'cal-order': el => { ui.cal.order = el.dataset.order; saveUI(); renderMain(); },
   'export-students': () => exportStudents(),
+  'fill-levels': () => fillLevels(),
   'delete-student': el => deleteStudent(el.dataset.id),
   'cal-find-go': el => {
     ui.cal.date = el.dataset.date; ui.tgKey = null; renderMain();
@@ -4431,7 +4476,9 @@ function onChange(e) {
     case 'rate': return onRateChange(t);
     case 'rate-field': return onRateField(t);
     case 'level-price': return onLevelPrice(t);
-    case 'ns-system': ui.nsSystem = t.value; $('#ns-year').innerHTML = yearOptions(t.value, null).replace('>Not set<', '>Year group<'); return;
+    case 'ns-system': ui.nsSystem = t.value; $('#ns-year').innerHTML = yearOptions(t.value, null).replace('>Not set<', '>Year group<'); $('#ns-level').innerHTML = nsLevelOpts(t.value, suggestQual(t.value, null) || ''); return;
+    case 'ns-level': t.dataset.touched = '1'; return;
+    case 'ns-year': { const l = suggestQual($('#ns-system').value, Number(t.value) || null); if (l && !$('#ns-level').dataset.touched) $('#ns-level').value = l; return; }
     case 'access': return onAccessChange(t);
     case 'tutor-view': ui.tutorView = t.value; ui.selected.clear(); renderMain(); return;
     case 'min-gap': ui.cal.minGap = Number(t.value); saveUI(); renderMain(); return;
